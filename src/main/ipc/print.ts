@@ -63,10 +63,10 @@ export function registerPrintHandlers() {
 
       const itemsRows = inv.items.map((item: any, i: number) => `
         <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'}">
-          <td>${item.item_name || ''}</td>
-          <td>${item.quantity}</td>
-          <td>${formatNum(item.unit_price)}</td>
-          <td>${formatNum(item.quantity * item.unit_price)}</td>
+          <td style="text-align: center;">${item.item_name || ''}</td>
+          <td style="text-align: center;">${item.quantity}</td>
+          <td style="text-align: center;">${formatNum(item.unit_price)}</td>
+          <td style="text-align: center;">${formatNum(item.quantity * item.unit_price)}</td>
         </tr>
       `).join('');
 
@@ -84,9 +84,9 @@ export function registerPrintHandlers() {
             <tbody>
               ${inv.payments.map((p: any) => `
                 <tr>
-                  <td>${p.date}</td>
-                  <td>${formatNum(p.amount)} ج.م</td>
-                  <td>${p.notes || '-'}</td>
+                  <td style="text-align: center;">${p.date}</td>
+                  <td style="text-align: center;">${formatNum(p.amount)} ج.م</td>
+                  <td style="text-align: center;">${p.notes || '-'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -234,6 +234,7 @@ export function registerPrintHandlers() {
             padding: 6px 12px;
             font-size: 11px;
             font-weight: 600;
+            text-align: center;
           }
 
           .payments-table th {
@@ -265,7 +266,6 @@ export function registerPrintHandlers() {
           <div class="name">${customer.name}</div>
           ${customer.phone ? `<div class="detail">الهاتف: ${customer.phone}</div>` : ''}
           ${customer.address ? `<div class="detail">العنوان: ${customer.address}</div>` : ''}
-          ${customer.notes ? `<div class="detail">ملاحظات: ${customer.notes}</div>` : ''}
         </div>
 
         <div class="summary-box">
