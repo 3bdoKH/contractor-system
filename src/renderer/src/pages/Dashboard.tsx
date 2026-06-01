@@ -93,20 +93,24 @@ export default function Dashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        {summaryCards.map(card => {
-          const Icon = card.icon;
-          return (
-            <div key={card.label} className={`${card.bg} rounded-2xl p-5 border border-white shadow-sm`}>
-              <div className="flex items-start justify-between">
-                <div className={`p-2.5 rounded-xl ${card.color} bg-opacity-15`}>
-                  <Icon size={20} className={card.text} />
+        {loading
+          ? [...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse h-32"></div>
+            ))
+          : summaryCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <div key={card.label} className={`${card.bg} rounded-2xl p-5 border border-white shadow-sm`}>
+                  <div className="flex items-start justify-between">
+                    <div className={`p-2.5 rounded-xl ${card.color} bg-opacity-15`}>
+                      <Icon size={20} className={card.text} />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-black text-slate-900 mt-3 leading-tight">{card.value}</p>
+                  <p className={`text-xs font-bold ${card.text} mt-1 uppercase tracking-wider`}>{card.label}</p>
                 </div>
-              </div>
-              <p className="text-2xl font-bold text-slate-900 mt-3 leading-tight">{card.value}</p>
-              <p className={`text-sm font-medium ${card.text} mt-1`}>{card.label}</p>
-            </div>
-          );
-        })}
+              );
+            })}
       </div>
 
       {/* Debtors list */}
@@ -120,7 +124,11 @@ export default function Dashboard() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-slate-400">جاري التحميل...</div>
+          <div className="space-y-2 p-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-slate-50 rounded-xl animate-pulse"></div>
+            ))}
+          </div>
         ) : debtors.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
             <AlertCircle size={40} className="mx-auto mb-3 text-slate-300" />
@@ -132,15 +140,15 @@ export default function Dashboard() {
               <Link
                 key={customer.id}
                 to={`/customers/${customer.id}`}
-                className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
+                className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors group"
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-red-600">{formatCurrency(customer.remaining)} ج.م</span>
-                  <span className="text-xs text-slate-400">متبقي</span>
-                </div>
                 <div className="text-right">
-                  <p className="font-semibold text-slate-900">{customer.name}</p>
+                  <p className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{customer.name}</p>
                   {customer.phone && <p className="text-xs text-slate-400 mt-0.5">{customer.phone}</p>}
+                </div>
+                <div className="text-left">
+                  <span className="text-sm font-black text-red-600">{formatCurrency(customer.remaining)}</span>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">متبقي</p>
                 </div>
               </Link>
             ))}

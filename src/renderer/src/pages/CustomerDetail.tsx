@@ -80,7 +80,15 @@ export default function CustomerDetail() {
   }
 
   if (loading) {
-    return <div className="p-6 text-center text-slate-400 py-20">جاري التحميل...</div>;
+    return (
+      <div className="p-6 space-y-6 animate-pulse">
+        <div className="w-24 h-4 bg-slate-100 rounded"></div>
+        <div className="h-40 bg-white rounded-2xl border border-slate-100"></div>
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <div key={i} className="h-20 bg-white rounded-2xl border border-slate-100"></div>)}
+        </div>
+      </div>
+    );
   }
 
   if (!customer) return null;
@@ -156,17 +164,17 @@ export default function CustomerDetail() {
         {/* Balance summary */}
         <div className="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-slate-100">
           <div className="text-center p-4 bg-slate-50 rounded-xl">
-            <p className="text-xs text-slate-500 mb-1">إجمالي الفواتير</p>
-            <p className="text-lg font-bold text-slate-900">{formatCurrency(totalInvoiced)} ج.م</p>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">إجمالي الفواتير</p>
+            <p className="text-lg font-black text-slate-900">{formatCurrency(totalInvoiced)}</p>
           </div>
           <div className="text-center p-4 bg-emerald-50 rounded-xl">
-            <p className="text-xs text-emerald-600 mb-1">إجمالي المدفوع</p>
-            <p className="text-lg font-bold text-emerald-700">{formatCurrency(totalPaid)} ج.م</p>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 mb-1">إجمالي المدفوع</p>
+            <p className="text-lg font-black text-emerald-700">{formatCurrency(totalPaid)}</p>
           </div>
           <div className={`text-center p-4 rounded-xl ${totalRemaining > 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
-            <p className={`text-xs mb-1 ${totalRemaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>الرصيد المتبقي</p>
-            <p className={`text-lg font-bold ${totalRemaining > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
-              {formatCurrency(totalRemaining)} ج.م
+            <p className={`text-[10px] uppercase tracking-wider font-bold mb-1 ${totalRemaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>الرصيد المتبقي</p>
+            <p className={`text-lg font-black ${totalRemaining > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
+              {formatCurrency(totalRemaining)}
             </p>
           </div>
         </div>
@@ -229,7 +237,7 @@ export default function CustomerDetail() {
                   type="text"
                   value={editForm.name}
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
                   required autoFocus
                 />
               </div>
@@ -239,7 +247,7 @@ export default function CustomerDetail() {
                   type="text"
                   value={editForm.phone}
                   onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
                 />
               </div>
               <div>
@@ -248,7 +256,7 @@ export default function CustomerDetail() {
                   type="text"
                   value={editForm.address}
                   onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
                 />
               </div>
               <div>
@@ -256,22 +264,22 @@ export default function CustomerDetail() {
                 <textarea
                   value={editForm.notes}
                   onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200 resize-none"
                   rows={3}
                 />
               </div>
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-2.5 rounded-xl transition-colors"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                 >
                   {saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowEdit(false)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-xl transition-colors"
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors active:scale-[0.98]"
                 >
                   إلغاء
                 </button>
