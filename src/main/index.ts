@@ -13,19 +13,26 @@ if (started) {
   app.quit();
 }
 
+// Required on Linux when chrome-sandbox is not configured
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox');
+}
+
+
 const createWindow = () => {
   // Initialize DB on startup
   getDb();
-
+  console.log('preload path:', path.join(__dirname, 'preload.js'))
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
     minHeight: 600,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false
     },
     title: 'الحاج حسن البطاط',
     autoHideMenuBar: true,

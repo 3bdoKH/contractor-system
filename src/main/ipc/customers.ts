@@ -30,7 +30,26 @@ export function registerCustomerHandlers() {
 
   // Get customer by ID with all invoices and payments
   ipcMain.handle('customers:getById', (_event, id: number) => {
-    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(id);
+    const customer = db.prepare(`
+    SELECT
+      c.id,
+      c.name,
+      c.phone,
+      c.address,
+      c.notes,
+      c.created_at,
+      COALESCE(SUM(i.total), 0) as total_invoiced,
+      COALESCE((
+        SELECT SUM(p.amount)
+        FROM payments p
+        JOIN invoices inv ON p.invoice_id = inv.id
+        WHERE inv.customer_id = c.id
+      ), 0) as total_paid
+    FROM customers c
+    LEFT JOIN invoices i ON i.customer_id = c.id
+    WHERE c.id = ?
+    GROUP BY c.id
+  `).get(id);
     if (!customer) return null;
 
     const invoices = db.prepare(`

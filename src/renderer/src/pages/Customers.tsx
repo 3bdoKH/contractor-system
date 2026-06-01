@@ -20,7 +20,7 @@ export default function Customers() {
   const [form, setForm] = useState<NewCustomerForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
-
+  console.log('window.api =', window.api)
   useEffect(() => {
     loadCustomers();
   }, []);

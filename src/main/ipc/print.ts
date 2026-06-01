@@ -1,17 +1,22 @@
-import { ipcMain, app, shell } from 'electron';
+import { ipcMain, app, shell, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
-import PDFDocument from 'pdfkit';
 import { getDb } from '../db';
 
-function formatNumber(n: number): string {
-  return n.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function formatNum(n: number): string {
+  return Number(n).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function getStatus(total: number, paid: number): string {
   if (paid >= total) return 'مدفوع بالكامل';
   if (paid > 0) return 'مدفوع جزئياً';
   return 'غير مدفوع';
+}
+
+function getStatusColor(total: number, paid: number): string {
+  if (paid >= total) return '#198754';
+  if (paid > 0) return '#fd7e14';
+  return '#dc3545';
 }
 
 export function registerPrintHandlers() {
@@ -27,7 +32,7 @@ export function registerPrintHandlers() {
       LEFT JOIN payments p ON p.invoice_id = i.id
       WHERE i.customer_id = ?
       GROUP BY i.id
-      ORDER BY i.date DESC
+      ORDER BY i.date ASC
     `).all(customerId) as any[];
 
     const invoicesWithDetails = invoices.map((inv) => {
@@ -49,135 +54,262 @@ export function registerPrintHandlers() {
     const totalPaid = invoicesWithDetails.reduce((s, i) => s + i.total_paid, 0);
     const remaining = totalInvoiced - totalPaid;
 
-    // Ensure Documents directory exists
+    // Build HTML
+    const invoicesHTML = invoicesWithDetails.map(inv => {
+      const invPaid = inv.total_paid;
+      const invRemaining = inv.total - invPaid;
+      const status = getStatus(inv.total, invPaid);
+      const statusColor = getStatusColor(inv.total, invPaid);
+
+      const itemsRows = inv.items.map((item: any, i: number) => `
+        <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'}">
+          <td>${item.item_name || ''}</td>
+          <td>${item.quantity}</td>
+          <td>${formatNum(item.unit_price)}</td>
+          <td>${formatNum(item.quantity * item.unit_price)}</td>
+        </tr>
+      `).join('');
+
+      const paymentsRows = inv.payments.length > 0 ? `
+        <div class="payments-section">
+          <div class="payments-header">سجل الدفعات</div>
+          <table class="payments-table">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>المبلغ</th>
+                <th>ملاحظات</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${inv.payments.map((p: any) => `
+                <tr>
+                  <td>${p.date}</td>
+                  <td>${formatNum(p.amount)} ج.م</td>
+                  <td>${p.notes || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '';
+
+      return `
+        <div class="invoice-block">
+          <div class="invoice-header">
+            <span>فاتورة رقم: ${inv.invoice_number}</span>
+            <span>التاريخ: ${inv.date}</span>
+            <span style="color:${statusColor}; font-weight:bold">${status}</span>
+          </div>
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>الصنف</th>
+                <th>الكمية</th>
+                <th>سعر الوحدة</th>
+                <th>الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>${itemsRows}</tbody>
+          </table>
+          <div class="invoice-totals">
+            <span>الإجمالي: <strong>${formatNum(inv.total)} ج.م</strong></span>
+            <span>المدفوع: <strong style="color:#198754">${formatNum(invPaid)} ج.م</strong></span>
+            <span>المتبقي: <strong style="color:${invRemaining > 0 ? '#dc3545' : '#198754'}">${formatNum(invRemaining)} ج.م</strong></span>
+          </div>
+          ${paymentsRows}
+        </div>
+      `;
+    }).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          @font-face {
+              font-family: 'Cairo';
+              src: url('${path.join(app.getAppPath(), 'assets', 'font', 'Cairo.ttf').replace(/\\/g, '/')}') format('truetype');
+              font-weight: 400 700;
+              font-style: normal;
+            }
+
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+
+          body {
+            font-family: 'Cairo', sans-serif;
+            font-size: 12px;
+            color: #212529;
+            direction: rtl;
+            padding: 30px;
+          }
+
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #343a40;
+            padding-bottom: 12px;
+          }
+
+          .header h1 { font-size: 22px; font-weight: 700; color: #343a40; }
+          .header .print-date { font-size: 11px; color: #6c757d; margin-top: 4px; }
+
+          .customer-info {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+          }
+
+          .customer-info .name { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+          .customer-info .detail { font-size: 11px; color: #495057; margin-top: 3px; }
+
+          .summary-box {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+
+          .summary-card {
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+          }
+
+          .summary-card .label { font-size: 10px; color: #6c757d; margin-bottom: 4px; }
+          .summary-card .value { font-size: 14px; font-weight: 700; }
+
+          .invoice-block {
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            overflow: hidden;
+            page-break-inside: avoid;
+          }
+
+          .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #343a40;
+            color: white;
+            padding: 8px 12px;
+            font-size: 11px;
+          }
+
+          table { width: 100%; border-collapse: collapse; }
+
+          .items-table th {
+            background: #e9ecef;
+            padding: 7px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            border-bottom: 1px solid #dee2e6;
+          }
+
+          .items-table td {
+            padding: 6px 10px;
+            font-size: 11px;
+            border-bottom: 1px solid #f0f0f0;
+          }
+
+          .invoice-totals {
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 12px;
+            background: #fff3cd;
+            border-top: 1px solid #ffc107;
+            font-size: 11px;
+          }
+
+          .payments-section { border-top: 1px solid #dee2e6; }
+
+          .payments-header {
+            background: #e8f5e9;
+            color: #1b5e20;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+          }
+
+          .payments-table th {
+            background: #f1f8f1;
+            padding: 5px 10px;
+            font-size: 10px;
+            font-weight: 600;
+          }
+
+          .payments-table td {
+            padding: 5px 10px;
+            font-size: 10px;
+            border-bottom: 1px solid #f0f0f0;
+          }
+
+          @media print {
+            body { padding: 15px; }
+            .invoice-block { page-break-inside: avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>الحاج حسن البطاط</h1>
+          <div class="print-date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</div>
+        </div>
+
+        <div class="customer-info">
+          <div class="name">${customer.name}</div>
+          ${customer.phone ? `<div class="detail">الهاتف: ${customer.phone}</div>` : ''}
+          ${customer.address ? `<div class="detail">العنوان: ${customer.address}</div>` : ''}
+          ${customer.notes ? `<div class="detail">ملاحظات: ${customer.notes}</div>` : ''}
+        </div>
+
+        <div class="summary-box">
+          <div class="summary-card">
+            <div class="label">إجمالي الفواتير</div>
+            <div class="value">${formatNum(totalInvoiced)} ج.م</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">إجمالي المدفوع</div>
+            <div class="value" style="color:#198754">${formatNum(totalPaid)} ج.م</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">الرصيد المتبقي</div>
+            <div class="value" style="color:${remaining > 0 ? '#dc3545' : '#198754'}">${formatNum(remaining)} ج.م</div>
+          </div>
+        </div>
+
+        ${invoicesHTML}
+      </body>
+      </html>
+    `;
+
+    // Write HTML to temp file
+    const tmpHtml = path.join(app.getPath('temp'), `report-${customerId}.html`);
+    fs.writeFileSync(tmpHtml, html, 'utf-8');
+
+    // Use hidden BrowserWindow to print to PDF
+    const win = new BrowserWindow({ show: false });
+    await win.loadFile(tmpHtml);
+
     const docsDir = app.getPath('documents');
     const outputPath = path.join(docsDir, `customer-${customerId}-${Date.now()}.pdf`);
 
-    const fontPath = path.join(app.getAppPath(), 'assets', 'font', 'Cairo.ttf');
-
-    return new Promise<string>((resolve, reject) => {
-      const doc = new PDFDocument({ size: 'A4', margin: 50 });
-      const stream = fs.createWriteStream(outputPath);
-      doc.pipe(stream);
-
-      const pageWidth = doc.page.width;
-      const margin = 50;
-      const contentWidth = pageWidth - margin * 2;
-
-      function registerFont() {
-        if (fs.existsSync(fontPath)) {
-          doc.registerFont('Cairo', fontPath);
-          doc.font('Cairo');
-        }
-      }
-
-      registerFont();
-
-      // ─── HEADER ───────────────────────────────────────────────────────────
-      doc.fontSize(22).text('الحاج حسن البطاط', margin, 50, {
-        width: contentWidth, align: 'right',
-      });
-
-      doc.fontSize(11).text(`تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}`, margin, 80, {
-        width: contentWidth, align: 'right',
-      });
-
-      doc.moveDown(0.5);
-      doc.fontSize(13).text(`العميل: ${customer.name}`, { width: contentWidth, align: 'right' });
-      if (customer.phone) doc.fontSize(11).text(`الهاتف: ${customer.phone}`, { width: contentWidth, align: 'right' });
-      if (customer.address) doc.fontSize(11).text(`العنوان: ${customer.address}`, { width: contentWidth, align: 'right' });
-
-      doc.moveDown(0.5);
-      doc.moveTo(margin, doc.y).lineTo(pageWidth - margin, doc.y).stroke();
-      doc.moveDown(0.5);
-
-      // ─── SUMMARY ──────────────────────────────────────────────────────────
-      doc.fontSize(12)
-        .text(`إجمالي الفواتير: ${formatNumber(totalInvoiced)} ج.م`, { width: contentWidth, align: 'right' })
-        .text(`إجمالي المدفوع: ${formatNumber(totalPaid)} ج.م`, { width: contentWidth, align: 'right' })
-        .text(`الرصيد المتبقي: ${formatNumber(remaining)} ج.م`, { width: contentWidth, align: 'right' });
-
-      doc.moveDown(0.5);
-      doc.moveTo(margin, doc.y).lineTo(pageWidth - margin, doc.y).stroke();
-
-      // ─── PER INVOICE ──────────────────────────────────────────────────────
-      for (const inv of invoicesWithDetails) {
-        doc.moveDown(0.8);
-        const invPaid = inv.total_paid;
-        const invRemaining = inv.total - invPaid;
-        const status = getStatus(inv.total, invPaid);
-
-        doc.fontSize(13).text(`فاتورة رقم: ${inv.invoice_number}   التاريخ: ${inv.date}   الحالة: ${status}`, {
-          width: contentWidth, align: 'right',
-        });
-
-        doc.moveDown(0.4);
-
-        // Items table header
-        doc.fontSize(11)
-          .text('الإجمالي', margin, doc.y, { width: contentWidth * 0.25, align: 'center' })
-          .text('سعر الوحدة', margin + contentWidth * 0.25, doc.y - doc.currentLineHeight(), { width: contentWidth * 0.25, align: 'center' })
-          .text('الكمية', margin + contentWidth * 0.5, doc.y - doc.currentLineHeight(), { width: contentWidth * 0.25, align: 'center' })
-          .text('الصنف', margin + contentWidth * 0.75, doc.y - doc.currentLineHeight(), { width: contentWidth * 0.25, align: 'right' });
-
-        doc.moveDown(0.3);
-        doc.moveTo(margin, doc.y).lineTo(pageWidth - margin, doc.y).stroke();
-        doc.moveDown(0.2);
-
-        // Items rows
-        for (const item of inv.items) {
-          const rowTotal = item.quantity * item.unit_price;
-          const y = doc.y;
-          doc.fontSize(10)
-            .text(formatNumber(rowTotal), margin, y, { width: contentWidth * 0.25, align: 'center' })
-            .text(formatNumber(item.unit_price), margin + contentWidth * 0.25, y, { width: contentWidth * 0.25, align: 'center' })
-            .text(String(item.quantity), margin + contentWidth * 0.5, y, { width: contentWidth * 0.25, align: 'center' })
-            .text(item.item_name || '', margin + contentWidth * 0.75, y, { width: contentWidth * 0.25, align: 'right' });
-        }
-
-        doc.moveDown(0.4);
-        doc.fontSize(11).text(`إجمالي الفاتورة: ${formatNumber(inv.total)} ج.م`, { width: contentWidth, align: 'right' });
-
-        // Payments
-        if (inv.payments.length > 0) {
-          doc.moveDown(0.3);
-          doc.fontSize(11).text('المدفوعات:', { width: contentWidth, align: 'right' });
-
-          for (const pmt of inv.payments) {
-            doc.fontSize(10).text(
-              `${pmt.date}   ${formatNumber(pmt.amount)} ج.م${pmt.notes ? '   ' + pmt.notes : ''}`,
-              { width: contentWidth, align: 'right' }
-            );
-          }
-        }
-
-        doc.moveDown(0.3);
-        doc.fontSize(11)
-          .text(`المدفوع: ${formatNumber(invPaid)} ج.م   المتبقي: ${formatNumber(invRemaining)} ج.م`, {
-            width: contentWidth, align: 'right',
-          });
-
-        doc.moveDown(0.4);
-        doc.moveTo(margin, doc.y).lineTo(pageWidth - margin, doc.y).dash(3, { space: 3 }).stroke();
-        doc.undash();
-      }
-
-      // Page numbers
-      const totalPages = (doc.bufferedPageRange().count) || 1;
-      for (let i = 0; i < totalPages; i++) {
-        doc.switchToPage(i);
-        doc.fontSize(9).text(`صفحة ${i + 1} من ${totalPages}`, margin, doc.page.height - 40, {
-          width: contentWidth, align: 'center',
-        });
-      }
-
-      doc.end();
-
-      stream.on('finish', () => {
-        shell.openPath(outputPath);
-        resolve(outputPath);
-      });
-      stream.on('error', reject);
+    const pdfBuffer = await win.webContents.printToPDF({
+      pageSize: 'A4',
+      printBackground: true,
+      margins: { marginType: 'default' },
     });
+
+    win.close();
+    fs.writeFileSync(outputPath, pdfBuffer);
+    fs.unlinkSync(tmpHtml);
+
+    shell.openPath(outputPath);
+    return outputPath;
   });
 }
