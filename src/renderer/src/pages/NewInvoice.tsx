@@ -134,11 +134,10 @@ export default function NewInvoice() {
               التاريخ <span className="text-red-500">*</span>
             </label>
             <input
-              type="text"
+              type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              placeholder="مثال: 2024-01-15"
-              className="w-full max-w-xs px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="w-full max-w-xs px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
               required
             />
           </div>
@@ -148,7 +147,7 @@ export default function NewInvoice() {
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="ملاحظات اختيارية"
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200 resize-none"
               rows={2}
             />
           </div>
