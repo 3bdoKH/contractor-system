@@ -1,6 +1,6 @@
 /** Format a number with Arabic-style thousand separators */
 export function formatCurrency(n: number): string {
-  return n.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 export function formatNumber(n: number): string {
