@@ -35,7 +35,7 @@ function initDb(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS invoices (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       invoice_number TEXT UNIQUE NOT NULL,
-      customer_id INTEGER NOT NULL REFERENCES customers(id),
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
       date TEXT NOT NULL,
       total REAL NOT NULL DEFAULT 0,
       notes TEXT,
@@ -44,7 +44,7 @@ function initDb(db: Database.Database) {
 
     CREATE TABLE IF NOT EXISTS invoice_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      invoice_id INTEGER NOT NULL REFERENCES invoices(id),
+      invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
       merchandise_id INTEGER REFERENCES merchandise(id),
       custom_name TEXT,
       quantity REAL NOT NULL,
@@ -53,7 +53,7 @@ function initDb(db: Database.Database) {
 
     CREATE TABLE IF NOT EXISTS payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      invoice_id INTEGER NOT NULL REFERENCES invoices(id),
+      invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
       amount REAL NOT NULL,
       date TEXT NOT NULL,
       notes TEXT,
