@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { getDb } from '../db';
 
 function formatNum(n: number): string {
-  return Number(n).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return Number(n).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function getStatus(total: number, paid: number): string {
