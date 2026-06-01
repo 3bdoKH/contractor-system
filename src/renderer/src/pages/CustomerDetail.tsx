@@ -206,6 +206,7 @@ export default function CustomerDetail() {
               <InvoiceCard
                 key={inv.id}
                 invoice={inv}
+                customerId={customerId}
                 onDeleted={loadCustomer}
                 onPaymentAdded={loadCustomer}
               />

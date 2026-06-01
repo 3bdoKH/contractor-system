@@ -20,6 +20,12 @@ declare global {
           items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number }[];
         }) => Promise<{ id: number; invoice_number: string }>;
         getByCustomer: (customerId: number) => Promise<Invoice[]>;
+        getById: (id: number) => Promise<Invoice | null>;
+        update: (id: number, data: {
+          date: string;
+          notes?: string;
+          items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number }[];
+        }) => Promise<{ success: boolean }>;
         delete: (id: number) => Promise<{ success: boolean }>;
       };
       payments: {

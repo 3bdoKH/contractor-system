@@ -74,6 +74,13 @@ const api = {
     }) => ipcRenderer.invoke('invoices:create', data),
     getByCustomer: (customerId: number): Promise<Invoice[]> =>
       ipcRenderer.invoke('invoices:getByCustomer', customerId),
+    getById: (id: number): Promise<Invoice | null> =>
+      ipcRenderer.invoke('invoices:getById', id),
+    update: (id: number, data: {
+      date: string;
+      notes?: string;
+      items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number }[];
+    }) => ipcRenderer.invoke('invoices:update', id, data),
     delete: (id: number) => ipcRenderer.invoke('invoices:delete', id),
   },
   payments: {

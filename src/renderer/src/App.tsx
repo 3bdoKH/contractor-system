@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
 import NewInvoice from './pages/NewInvoice';
+import EditInvoice from './pages/EditInvoice';
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="customers" element={<Customers />} />
           <Route path="customers/:id" element={<CustomerDetail />} />
           <Route path="customers/:id/new-invoice" element={<NewInvoice />} />
+          <Route path="customers/:id/edit-invoice/:invoiceId" element={<EditInvoice />} />
         </Route>
       </Routes>
     </HashRouter>

@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Trash2, Plus, CreditCard, Receipt } from 'lucide-react';
+import { ChevronDown, ChevronUp, Trash2, Plus, CreditCard, Receipt, Edit2 } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { formatCurrency, getInvoiceStatus, STATUS_LABELS, STATUS_CLASSES } from '../utils';
 import PaymentModal from './PaymentModal';
 
 interface InvoiceCardProps {
   invoice: Invoice;
+  customerId: number;
   onDeleted: () => void;
   onPaymentAdded: () => void;
 }
 
-export default function InvoiceCard({ invoice, onDeleted, onPaymentAdded }: InvoiceCardProps) {
+export default function InvoiceCard({ invoice, customerId, onDeleted, onPaymentAdded }: InvoiceCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -91,6 +93,13 @@ export default function InvoiceCard({ invoice, onDeleted, onPaymentAdded }: Invo
             <Plus size={14} />
             إضافة دفعة
           </button>
+          <Link
+            to={`/customers/${customerId}/edit-invoice/${invoice.id}`}
+            className="flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg transition-colors border border-blue-200"
+          >
+            <Edit2 size={14} />
+            تعديل الفاتورة
+          </Link>
           <button
             onClick={handleDelete}
             disabled={deleting}
