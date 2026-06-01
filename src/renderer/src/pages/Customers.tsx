@@ -73,10 +73,10 @@ export default function Customers() {
 
   function getCustomerStatusClass(c: Customer) {
     const remaining = c.total_invoiced - c.total_paid;
-    if (c.total_invoiced === 0) return 'bg-slate-100 text-slate-600 border-slate-200';
-    if (remaining <= 0) return STATUS_CLASSES.paid;
-    if (c.total_paid > 0) return STATUS_CLASSES.partial;
-    return STATUS_CLASSES.unpaid;
+    if (c.total_invoiced === 0) return 'bg-slate-100 text-slate-600';
+    if (remaining <= 0) return 'bg-emerald-100 text-emerald-800';
+    if (c.total_paid > 0) return 'bg-amber-100 text-amber-800';
+    return 'bg-red-100 text-red-800';
   }
 
   function getCustomerStatusLabel(c: Customer) {
@@ -117,11 +117,28 @@ export default function Customers() {
 
       {/* Customer list */}
       {loading ? (
-        <div className="text-center py-16 text-slate-400">جاري التحميل...</div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center justify-between px-5 py-4 bg-white rounded-2xl border border-slate-100 shadow-sm animate-pulse">
+              <div className="w-20 h-10 bg-slate-100 rounded-lg"></div>
+              <div className="text-right">
+                <div className="w-32 h-4 bg-slate-100 rounded mb-2"></div>
+                <div className="w-20 h-3 bg-slate-50 rounded"></div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : customers.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">
-          <UserCircle size={48} className="mx-auto mb-3 text-slate-300" />
-          <p>{query ? 'لا توجد نتائج' : 'لا يوجد عملاء بعد'}</p>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="bg-slate-50 p-4 rounded-full mb-4">
+            <UserCircle size={40} className="text-slate-300" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 mb-1">
+            {query ? 'لا توجد نتائج' : 'لم يتم إضافة عملاء بعد'}
+          </h3>
+          <p className="text-slate-500 max-w-sm">
+            {query ? 'جرب البحث باسم مختلف أو تأكد من صحة رقم الهاتف' : 'ابدأ بإضافة أول عميل لك بالنقر على زر "عميل جديد" في الأعلى'}
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -134,20 +151,20 @@ export default function Customers() {
                   to={`/customers/${c.id}`}
                   className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors group"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className="text-xs text-slate-500">المتبقي</p>
-                      <p className={`font-bold text-sm ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {formatCurrency(remaining)} ج.م
+                      <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">المتبقي</p>
+                      <p className={`font-black text-sm ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {formatCurrency(remaining)}
                       </p>
                     </div>
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${getCustomerStatusClass(c)}`}>
+                    <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${getCustomerStatusClass(c).replace('border', '')} bg-opacity-10`}>
                       {getCustomerStatusLabel(c)}
                     </span>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">{c.name}</p>
-                    {c.phone && <p className="text-sm text-slate-400 mt-0.5">{c.phone}</p>}
+                    <p className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{c.name}</p>
+                    {c.phone && <p className="text-xs text-slate-400 mt-0.5">{c.phone}</p>}
                   </div>
                 </Link>
               );
@@ -186,7 +203,7 @@ export default function Customers() {
                   type="text"
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
                   placeholder="اسم العميل"
                   required
                   autoFocus
@@ -199,7 +216,7 @@ export default function Customers() {
                   type="text"
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
                   placeholder="01xxxxxxxxx"
                 />
               </div>
@@ -210,7 +227,7 @@ export default function Customers() {
                   type="text"
                   value={form.address}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
                   placeholder="العنوان"
                 />
               </div>
@@ -220,24 +237,24 @@ export default function Customers() {
                 <textarea
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200 resize-none"
                   rows={3}
                   placeholder="ملاحظات اختيارية"
                 />
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-2.5 rounded-xl transition-colors"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                 >
                   {saving ? 'جاري الحفظ...' : 'إضافة العميل'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-xl transition-colors"
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors active:scale-[0.98]"
                 >
                   إلغاء
                 </button>
