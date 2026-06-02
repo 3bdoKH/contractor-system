@@ -8,6 +8,7 @@ import { registerPaymentHandlers } from './ipc/payments';
 import { registerMerchandiseHandlers } from './ipc/merchandise';
 import { registerPrintHandlers } from './ipc/print';
 import { registerSupplierHandlers } from './ipc/suppliers';
+import { registerSettingsHandlers } from './ipc/settings';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -35,9 +36,14 @@ const createWindow = () => {
       nodeIntegration: false,
       sandbox: false
     },
-    title: 'الحاج حسن البطاط',
+    title: 'نظام المقاول',
     autoHideMenuBar: true,
   });
+
+  // Set title from DB settings
+  const db = getDb();
+  const nameSetting = db.prepare("SELECT value FROM settings WHERE key = 'contractor_name'").get() as any;
+  mainWindow.setTitle(nameSetting?.value || 'نظام المقاول');
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -54,6 +60,7 @@ const createWindow = () => {
   registerMerchandiseHandlers();
   registerPrintHandlers();
   registerSupplierHandlers();
+  registerSettingsHandlers();
 };
 
 app.on('ready', createWindow);

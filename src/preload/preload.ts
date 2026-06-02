@@ -167,6 +167,10 @@ const api = {
     getByInvoice: (invoiceId: number) => ipcRenderer.invoke('supplierPayments:getByInvoice', invoiceId),
     delete: (id: number) => ipcRenderer.invoke('supplierPayments:delete', id),
   },
+  settings: {
+    getAll: (): Promise<Record<string, string>> => ipcRenderer.invoke('settings:getAll'),
+    update: (data: Record<string, string>) => ipcRenderer.invoke('settings:update', data),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

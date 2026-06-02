@@ -96,7 +96,29 @@ function initDb(db: Database.Database) {
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 
   seedMerchandise(db);
+  seedSettings(db);
+}
+
+function seedSettings(db: Database.Database) {
+  const defaults = [
+    { key: 'contractor_name', value: 'نظام المقاول' },
+    { key: 'contractor_phone', value: '' },
+    { key: 'contractor_address', value: '' },
+    { key: 'pdf_header_title', value: 'كشف حساب' },
+    { key: 'pdf_footer_note', value: '' },
+  ];
+  const insert = db.prepare(
+    'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)'
+  );
+  for (const { key, value } of defaults) {
+    insert.run(key, value);
+  }
 }

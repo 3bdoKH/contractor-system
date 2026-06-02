@@ -23,6 +23,11 @@ export function registerPrintHandlers() {
   const db = getDb();
 
   ipcMain.handle('print:customerReport', async (_event, customerId: number) => {
+    // Load settings
+    const settingRows = db.prepare('SELECT key, value FROM settings').all() as any[];
+    const cfg: Record<string, string> = {};
+    settingRows.forEach((s: any) => { cfg[s.key] = s.value; });
+
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId) as any;
     if (!customer) throw new Error('Customer not found');
 
@@ -154,6 +159,8 @@ export function registerPrintHandlers() {
 
           .header h1 { font-size: 22px; font-weight: 700; color: #343a40; }
           .header .print-date { font-size: 11px; color: #6c757d; margin-top: 4px; }
+          .header .sub-title { font-size: 13px; color: #495057; margin-top: 2px; font-weight: 600; }
+          .footer-note { margin-top: 20px; padding: 10px 14px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 11px; color: #495057; text-align: center; }
 
           .customer-info {
             margin-bottom: 16px;
@@ -258,7 +265,8 @@ export function registerPrintHandlers() {
       </head>
       <body>
         <div class="header">
-          <h1>الحاج حسن البطاط</h1>
+          <h1>${cfg.contractor_name || 'نظام المقاول'}</h1>
+          <div class="sub-title">${cfg.pdf_header_title || 'كشف حساب'}</div>
           <div class="print-date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</div>
         </div>
 
@@ -284,6 +292,7 @@ export function registerPrintHandlers() {
         </div>
 
         ${invoicesHTML}
+        ${cfg.pdf_footer_note ? `<div class="footer-note">${cfg.pdf_footer_note}</div>` : ''}
       </body>
       </html>
     `;
@@ -314,6 +323,11 @@ export function registerPrintHandlers() {
   });
 
   ipcMain.handle('print:supplierReport', async (_event, supplierId: number) => {
+    // Load settings
+    const settingRows = db.prepare('SELECT key, value FROM settings').all() as any[];
+    const cfg: Record<string, string> = {};
+    settingRows.forEach((s: any) => { cfg[s.key] = s.value; });
+
     const supplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(supplierId) as any;
     if (!supplier) throw new Error('Supplier not found');
 
@@ -444,6 +458,8 @@ export function registerPrintHandlers() {
 
           .header h1 { font-size: 22px; font-weight: 700; color: #343a40; }
           .header .print-date { font-size: 11px; color: #6c757d; margin-top: 4px; }
+          .header .sub-title { font-size: 13px; color: #495057; margin-top: 2px; font-weight: 600; }
+          .footer-note { margin-top: 20px; padding: 10px 14px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 11px; color: #495057; text-align: center; }
 
           .supplier-info {
             margin-bottom: 16px;
@@ -548,7 +564,8 @@ export function registerPrintHandlers() {
       </head>
       <body>
         <div class="header">
-          <h1>الحاج حسن البطاط</h1>
+          <h1>${cfg.contractor_name || 'نظام المقاول'}</h1>
+          <div class="sub-title">${cfg.pdf_header_title || 'كشف حساب'}</div>
           <div class="print-date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</div>
         </div>
 
@@ -574,6 +591,7 @@ export function registerPrintHandlers() {
         </div>
 
         ${invoicesHTML}
+        ${cfg.pdf_footer_note ? `<div class="footer-note">${cfg.pdf_footer_note}</div>` : ''}
       </body>
       </html>
     `;

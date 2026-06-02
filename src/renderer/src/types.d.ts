@@ -63,6 +63,10 @@ declare global {
         getByInvoice: (invoiceId: number) => Promise<SupplierPayment[]>;
         delete: (id: number) => Promise<{ success: boolean }>;
       };
+      settings: {
+        getAll: () => Promise<Record<string, string>>;
+        update: (data: Record<string, string>) => Promise<{ success: boolean }>;
+      };
     };
   }
 

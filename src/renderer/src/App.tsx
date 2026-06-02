@@ -9,6 +9,7 @@ import EditInvoice from './pages/EditInvoice';
 import Suppliers from './pages/Suppliers';
 import SupplierDetail from './pages/SupplierDetail';
 import NewSupplyInvoice from './pages/NewSupplyInvoice';
+import Settings from './pages/Settings';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="suppliers/:id" element={<SupplierDetail />} />
           <Route path="suppliers/:id/new-supply-invoice" element={<NewSupplyInvoice />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </HashRouter>
