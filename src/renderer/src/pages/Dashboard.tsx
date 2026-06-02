@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, TrendingUp, Wallet, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Users, TrendingUp, Wallet, AlertCircle, ArrowLeft, ShoppingCart, Truck } from 'lucide-react';
 import { formatCurrency } from '../utils';
 
 interface DashboardStats {
@@ -8,6 +8,8 @@ interface DashboardStats {
   totalInvoiced: number;
   totalPaid: number;
   totalRemaining: number;
+  totalPurchases: number;
+  totalOwedToSuppliers: number;
 }
 
 export default function Dashboard() {
@@ -16,6 +18,8 @@ export default function Dashboard() {
     totalInvoiced: 0,
     totalPaid: 0,
     totalRemaining: 0,
+    totalPurchases: 0,
+    totalOwedToSuppliers: 0,
   });
   const [debtors, setDebtors] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,17 +31,23 @@ export default function Dashboard() {
   async function loadData() {
     setLoading(true);
     try {
-      const customers = await window.api.customers.getAll();
+      const [customers, suppliers] = await Promise.all([
+        window.api.customers.getAll(),
+        window.api.suppliers.getAll(),
+      ]);
       const totalInvoiced = customers.reduce((s, c) => s + c.total_invoiced, 0);
       const totalPaid = customers.reduce((s, c) => s + c.total_paid, 0);
+      const totalPurchases = suppliers.reduce((s, sup) => s + sup.total_invoiced, 0);
+      const totalSupplierPaid = suppliers.reduce((s, sup) => s + sup.total_paid, 0);
       setStats({
         totalCustomers: customers.length,
         totalInvoiced,
         totalPaid,
         totalRemaining: totalInvoiced - totalPaid,
+        totalPurchases,
+        totalOwedToSuppliers: totalPurchases - totalSupplierPaid,
       });
 
-      // Sort by highest remaining balance
       const withBalance = customers
         .map(c => ({ ...c, remaining: c.total_invoiced - c.total_paid }))
         .filter(c => c.remaining > 0)
@@ -82,6 +92,22 @@ export default function Dashboard() {
       bg: 'bg-red-50',
       text: 'text-red-700',
     },
+    {
+      label: 'إجمالي المشتريات',
+      value: `${formatCurrency(stats.totalPurchases)} ج.م`,
+      icon: ShoppingCart,
+      color: 'bg-orange-500',
+      bg: 'bg-orange-50',
+      text: 'text-orange-700',
+    },
+    {
+      label: 'إجمالي المستحق للموردين',
+      value: `${formatCurrency(stats.totalOwedToSuppliers)} ج.م`,
+      icon: Truck,
+      color: stats.totalOwedToSuppliers > 0 ? 'bg-red-500' : 'bg-emerald-500',
+      bg: stats.totalOwedToSuppliers > 0 ? 'bg-red-50' : 'bg-emerald-50',
+      text: stats.totalOwedToSuppliers > 0 ? 'text-red-700' : 'text-emerald-700',
+    },
   ];
 
   return (
@@ -92,9 +118,9 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
         {loading
-          ? [...Array(4)].map((_, i) => (
+          ? [...Array(6)].map((_, i) => (
               <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse h-32"></div>
             ))
           : summaryCards.map((card) => {

@@ -54,6 +54,54 @@ export interface Merchandise {
   name: string;
 }
 
+// Supplier types
+export interface Supplier {
+  id: number;
+  name: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+  created_at: string;
+  total_invoiced: number;
+  total_paid: number;
+}
+
+export interface SupplyInvoiceItem {
+  id: number;
+  supply_invoice_id: number;
+  merchandise_id?: number;
+  custom_name?: string;
+  merchandise_name?: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface SupplierPayment {
+  id: number;
+  supply_invoice_id: number;
+  amount: number;
+  date: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface SupplyInvoice {
+  id: number;
+  invoice_number: string;
+  supplier_id: number;
+  date: string;
+  total: number;
+  total_paid: number;
+  notes?: string;
+  created_at: string;
+  items?: SupplyInvoiceItem[];
+  payments?: SupplierPayment[];
+}
+
+export interface SupplierDetail extends Supplier {
+  invoices: SupplyInvoice[];
+}
+
 const api = {
   customers: {
     getAll: (): Promise<Customer[]> => ipcRenderer.invoke('customers:getAll'),
@@ -96,7 +144,30 @@ const api = {
   print: {
     customerReport: (customerId: number): Promise<string> =>
       ipcRenderer.invoke('print:customerReport', customerId),
+    supplierReport: (supplierId: number): Promise<string> =>
+      ipcRenderer.invoke('print:supplierReport', supplierId),
+  },
+  suppliers: {
+    getAll: (): Promise<Supplier[]> => ipcRenderer.invoke('suppliers:getAll'),
+    getById: (id: number): Promise<SupplierDetail | null> => ipcRenderer.invoke('suppliers:getById', id),
+    create: (data: { name: string; phone?: string; address?: string; notes?: string }) =>
+      ipcRenderer.invoke('suppliers:create', data),
+    update: (id: number, data: { name: string; phone?: string; address?: string; notes?: string }) =>
+      ipcRenderer.invoke('suppliers:update', id, data),
+    delete: (id: number) => ipcRenderer.invoke('suppliers:delete', id),
+    search: (query: string): Promise<Supplier[]> => ipcRenderer.invoke('suppliers:search', query),
+  },
+  supplyInvoices: {
+    create: (data: any) => ipcRenderer.invoke('supplyInvoices:create', data),
+    getBySupplier: (supplierId: number) => ipcRenderer.invoke('supplyInvoices:getBySupplier', supplierId),
+    delete: (id: number) => ipcRenderer.invoke('supplyInvoices:delete', id),
+  },
+  supplierPayments: {
+    add: (data: any) => ipcRenderer.invoke('supplierPayments:add', data),
+    getByInvoice: (invoiceId: number) => ipcRenderer.invoke('supplierPayments:getByInvoice', invoiceId),
+    delete: (id: number) => ipcRenderer.invoke('supplierPayments:delete', id),
   },
 };
 
 contextBridge.exposeInMainWorld('api', api);
+

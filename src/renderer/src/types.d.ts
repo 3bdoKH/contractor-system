@@ -38,6 +38,30 @@ declare global {
       };
       print: {
         customerReport: (customerId: number) => Promise<string>;
+        supplierReport: (supplierId: number) => Promise<string>;
+      };
+      suppliers: {
+        getAll: () => Promise<Supplier[]>;
+        getById: (id: number) => Promise<SupplierDetail | null>;
+        create: (data: { name: string; phone?: string; address?: string; notes?: string }) => Promise<{ id: number }>;
+        update: (id: number, data: { name: string; phone?: string; address?: string; notes?: string }) => Promise<{ success: boolean }>;
+        delete: (id: number) => Promise<{ success: boolean }>;
+        search: (query: string) => Promise<Supplier[]>;
+      };
+      supplyInvoices: {
+        create: (data: {
+          supplier_id: number;
+          date: string;
+          notes?: string;
+          items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number }[];
+        }) => Promise<{ id: number; invoice_number: string }>;
+        getBySupplier: (supplierId: number) => Promise<SupplyInvoice[]>;
+        delete: (id: number) => Promise<{ success: boolean }>;
+      };
+      supplierPayments: {
+        add: (data: { supply_invoice_id: number; amount: number; date: string; notes?: string }) => Promise<{ id: number }>;
+        getByInvoice: (invoiceId: number) => Promise<SupplierPayment[]>;
+        delete: (id: number) => Promise<{ success: boolean }>;
       };
     };
   }
@@ -94,4 +118,53 @@ declare global {
     id: number;
     name: string;
   }
+
+  // Supplier interfaces
+  interface Supplier {
+    id: number;
+    name: string;
+    phone?: string;
+    address?: string;
+    notes?: string;
+    created_at: string;
+    total_invoiced: number;
+    total_paid: number;
+  }
+
+  interface SupplyInvoiceItem {
+    id: number;
+    supply_invoice_id: number;
+    merchandise_id?: number;
+    custom_name?: string;
+    merchandise_name?: string;
+    quantity: number;
+    unit_price: number;
+  }
+
+  interface SupplierPayment {
+    id: number;
+    supply_invoice_id: number;
+    amount: number;
+    date: string;
+    notes?: string;
+    created_at: string;
+  }
+
+  interface SupplyInvoice {
+    id: number;
+    invoice_number: string;
+    supplier_id: number;
+    date: string;
+    total: number;
+    total_paid: number;
+    notes?: string;
+    created_at: string;
+    items?: SupplyInvoiceItem[];
+    payments?: SupplierPayment[];
+  }
+
+  interface SupplierDetail extends Supplier {
+    invoices: SupplyInvoice[];
+  }
 }
+

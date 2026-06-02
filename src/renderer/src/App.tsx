@@ -6,6 +6,9 @@ import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
 import NewInvoice from './pages/NewInvoice';
 import EditInvoice from './pages/EditInvoice';
+import Suppliers from './pages/Suppliers';
+import SupplierDetail from './pages/SupplierDetail';
+import NewSupplyInvoice from './pages/NewSupplyInvoice';
 
 export default function App() {
   return (
@@ -17,8 +20,12 @@ export default function App() {
           <Route path="customers/:id" element={<CustomerDetail />} />
           <Route path="customers/:id/new-invoice" element={<NewInvoice />} />
           <Route path="customers/:id/edit-invoice/:invoiceId" element={<EditInvoice />} />
+          <Route path="suppliers" element={<Suppliers />} />
+          <Route path="suppliers/:id" element={<SupplierDetail />} />
+          <Route path="suppliers/:id/new-supply-invoice" element={<NewSupplyInvoice />} />
         </Route>
       </Routes>
     </HashRouter>
   );
 }
+

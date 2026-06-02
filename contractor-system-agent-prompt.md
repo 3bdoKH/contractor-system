@@ -1,7 +1,5 @@
 # Agent Prompt — نظام المقاول (Contractor System)
 
-> Copy this prompt in full and give it to the AI coding agent after scaffolding the project.
-
 ---
 
 You are building a **desktop Electron + React + TypeScript** application for an Egyptian building materials contractor. The app is fully in **Arabic, RTL layout**. Use **Tailwind CSS** for styling. The UI must be clean, professional, and easy to use — prioritize clarity and good UX.

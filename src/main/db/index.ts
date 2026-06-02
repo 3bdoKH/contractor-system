@@ -59,6 +59,43 @@ function initDb(db: Database.Database) {
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT,
+      address TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS supply_invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_number TEXT UNIQUE NOT NULL,
+      supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      total REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS supply_invoice_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      supply_invoice_id INTEGER NOT NULL REFERENCES supply_invoices(id) ON DELETE CASCADE,
+      merchandise_id INTEGER REFERENCES merchandise(id),
+      custom_name TEXT,
+      quantity REAL NOT NULL,
+      unit_price REAL NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS supplier_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      supply_invoice_id INTEGER NOT NULL REFERENCES supply_invoices(id) ON DELETE CASCADE,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   seedMerchandise(db);
