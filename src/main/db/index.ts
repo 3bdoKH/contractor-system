@@ -101,10 +101,26 @@ function initDb(db: Database.Database) {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS expense_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    );
+
+    CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id INTEGER REFERENCES expense_categories(id),
+      custom_category TEXT,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   seedMerchandise(db);
   seedSettings(db);
+  seedExpenseCategories(db);
 }
 
 function seedSettings(db: Database.Database) {
@@ -120,5 +136,18 @@ function seedSettings(db: Database.Database) {
   );
   for (const { key, value } of defaults) {
     insert.run(key, value);
+  }
+}
+
+function seedExpenseCategories(db: Database.Database) {
+  const defaultCategories = [
+    'وقود', 'عمالة', 'إيجار', 'صيانة', 'مواصلات',
+    'كهرباء', 'مياه', 'اتصالات', 'مستلزمات مكتبية', 'أخرى',
+  ];
+  const insert = db.prepare(
+    'INSERT OR IGNORE INTO expense_categories (name) VALUES (?)'
+  );
+  for (const name of defaultCategories) {
+    insert.run(name);
   }
 }

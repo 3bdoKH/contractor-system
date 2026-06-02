@@ -1,5 +1,5 @@
 // Type declarations for window.api (mirrors preload/index.ts)
-export {};
+export { };
 
 declare global {
   interface Window {
@@ -66,6 +66,15 @@ declare global {
       settings: {
         getAll: () => Promise<Record<string, string>>;
         update: (data: Record<string, string>) => Promise<{ success: boolean }>;
+      };
+      expenses: {
+        getAll: (filters?: { from?: string; to?: string; category_id?: number }) => Promise<Expense[]>;
+        create: (data: { category_id?: number; custom_category?: string; amount: number; date: string; notes?: string }) => Promise<{ id: number }>;
+        update: (id: number, data: any) => Promise<{ success: boolean }>;
+        delete: (id: number) => Promise<{ success: boolean }>;
+        getTotal: (filters?: any) => Promise<{ total: number }>;
+        getCategories: () => Promise<ExpenseCategory[]>;
+        createCategory: (name: string) => Promise<{ id: number }>;
       };
     };
   }
@@ -170,5 +179,20 @@ declare global {
   interface SupplierDetail extends Supplier {
     invoices: SupplyInvoice[];
   }
-}
 
+  interface ExpenseCategory {
+    id: number;
+    name: string;
+  }
+
+  interface Expense {
+    id: number;
+    category_id?: number;
+    category_name?: string;
+    custom_category?: string;
+    amount: number;
+    date: string;
+    notes?: string;
+    created_at: string;
+  }
+}

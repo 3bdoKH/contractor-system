@@ -171,6 +171,17 @@ const api = {
     getAll: (): Promise<Record<string, string>> => ipcRenderer.invoke('settings:getAll'),
     update: (data: Record<string, string>) => ipcRenderer.invoke('settings:update', data),
   },
+  expenses: {
+    getAll: (filters?: { from?: string; to?: string; category_id?: number }) =>
+      ipcRenderer.invoke('expenses:getAll', filters),
+    create: (data: { category_id?: number; custom_category?: string; amount: number; date: string; notes?: string }) =>
+      ipcRenderer.invoke('expenses:create', data),
+    update: (id: number, data: any) => ipcRenderer.invoke('expenses:update', id, data),
+    delete: (id: number) => ipcRenderer.invoke('expenses:delete', id),
+    getTotal: (filters?: any) => ipcRenderer.invoke('expenses:getTotal', filters),
+    getCategories: (): Promise<ExpenseCategory[]> => ipcRenderer.invoke('expenses:getCategories'),
+    createCategory: (name: string) => ipcRenderer.invoke('expenses:createCategory', name),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

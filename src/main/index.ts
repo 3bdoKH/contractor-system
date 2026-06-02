@@ -9,6 +9,7 @@ import { registerMerchandiseHandlers } from './ipc/merchandise';
 import { registerPrintHandlers } from './ipc/print';
 import { registerSupplierHandlers } from './ipc/suppliers';
 import { registerSettingsHandlers } from './ipc/settings';
+import { registerExpenseHandlers } from './ipc/expenses';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -61,6 +62,7 @@ const createWindow = () => {
   registerPrintHandlers();
   registerSupplierHandlers();
   registerSettingsHandlers();
+  registerExpenseHandlers();
 };
 
 app.on('ready', createWindow);
