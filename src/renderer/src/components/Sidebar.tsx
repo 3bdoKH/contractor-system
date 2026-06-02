@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Truck, Settings, Receipt } from 'lucide-react';
+import { LayoutDashboard, Users, Truck, Settings, Receipt, Boxes } from 'lucide-react';
 
 const navItems = [
   { to: '/', label: 'لوحة التحكم', icon: LayoutDashboard, end: true },
   { to: '/customers', label: 'العملاء', icon: Users, end: false },
   { to: '/suppliers', label: 'الموردين', icon: Truck, end: false },
   { to: '/expenses', label: 'المصروفات', icon: Receipt, end: false },
+  { to: '/inventory-report', label: 'تقرير المخزن', icon: Boxes, end: false },
 ];
 
 export default function Sidebar() {

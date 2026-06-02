@@ -76,6 +76,10 @@ declare global {
         getCategories: () => Promise<ExpenseCategory[]>;
         createCategory: (name: string) => Promise<{ id: number }>;
       };
+      inventory: {
+        getReport: (filters?: { from?: string; to?: string }) => Promise<InventoryReport>;
+        printReport: (filters?: { from?: string; to?: string }, titleLabel?: string) => Promise<string>;
+      };
     };
   }
 
@@ -194,5 +198,25 @@ declare global {
     date: string;
     notes?: string;
     created_at: string;
+  }
+
+  interface InventoryReportItem {
+    id: number;
+    name: string;
+    opening_stock: number;
+    incoming: number;
+    outgoing: number;
+    closing_stock: number;
+    latest_price: number;
+    valuation: number;
+  }
+
+  interface InventoryReport {
+    items: InventoryReportItem[];
+    summary: {
+      total_items: number;
+      total_stock_qty: number;
+      total_valuation: number;
+    };
   }
 }

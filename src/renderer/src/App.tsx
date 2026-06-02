@@ -11,6 +11,7 @@ import SupplierDetail from './pages/SupplierDetail';
 import NewSupplyInvoice from './pages/NewSupplyInvoice';
 import Settings from './pages/Settings';
 import Expenses from './pages/Expenses';
+import InventoryReport from './pages/InventoryReport';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="suppliers/:id" element={<SupplierDetail />} />
           <Route path="suppliers/:id/new-supply-invoice" element={<NewSupplyInvoice />} />
           <Route path="expenses" element={<Expenses />} />
+          <Route path="inventory-report" element={<InventoryReport />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

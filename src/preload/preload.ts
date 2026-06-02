@@ -182,6 +182,12 @@ const api = {
     getCategories: (): Promise<ExpenseCategory[]> => ipcRenderer.invoke('expenses:getCategories'),
     createCategory: (name: string) => ipcRenderer.invoke('expenses:createCategory', name),
   },
+  inventory: {
+    getReport: (filters?: { from?: string; to?: string }) =>
+      ipcRenderer.invoke('inventory:getReport', filters),
+    printReport: (filters?: { from?: string; to?: string }, titleLabel?: string) =>
+      ipcRenderer.invoke('print:inventoryReport', filters, titleLabel),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);
