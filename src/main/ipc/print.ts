@@ -70,6 +70,7 @@ export function registerPrintHandlers() {
         <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'}">
           <td style="text-align: center;">${item.item_name || ''}</td>
           <td style="text-align: center;">${item.quantity}</td>
+          <td style="text-align: center;">${item.unit || '-'}</td>
           <td style="text-align: center;">${formatNum(item.unit_price)}</td>
           <td style="text-align: center;">${formatNum(item.quantity * item.unit_price)}</td>
         </tr>
@@ -111,6 +112,7 @@ export function registerPrintHandlers() {
               <tr>
                 <th>الصنف</th>
                 <th>الكمية</th>
+                <th>الوحدة</th>
                 <th>سعر الوحدة</th>
                 <th>الإجمالي</th>
               </tr>
@@ -369,6 +371,7 @@ export function registerPrintHandlers() {
         <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'}">
           <td style="text-align: center;">${item.item_name || ''}</td>
           <td style="text-align: center;">${item.quantity}</td>
+          <td style="text-align: center;">${item.unit || '-'}</td>
           <td style="text-align: center;">${formatNum(item.unit_price)}</td>
           <td style="text-align: center;">${formatNum(item.quantity * item.unit_price)}</td>
         </tr>
@@ -410,6 +413,7 @@ export function registerPrintHandlers() {
               <tr>
                 <th>الصنف</th>
                 <th>الكمية</th>
+                <th>الوحدة</th>
                 <th>سعر الوحدة</th>
                 <th>الإجمالي</th>
               </tr>

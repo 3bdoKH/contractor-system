@@ -21,6 +21,7 @@ export interface InvoiceItem {
   item_name?: string;
   quantity: number;
   unit_price: number;
+  unit?: string;
 }
 
 export interface Payment {
@@ -74,6 +75,7 @@ export interface SupplyInvoiceItem {
   merchandise_name?: string;
   quantity: number;
   unit_price: number;
+  unit?: string;
 }
 
 export interface SupplierPayment {
@@ -118,7 +120,7 @@ const api = {
       customer_id: number;
       date: string;
       notes?: string;
-      items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number }[];
+      items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number; unit?: string }[];
     }) => ipcRenderer.invoke('invoices:create', data),
     getByCustomer: (customerId: number): Promise<Invoice[]> =>
       ipcRenderer.invoke('invoices:getByCustomer', customerId),
@@ -127,7 +129,7 @@ const api = {
     update: (id: number, data: {
       date: string;
       notes?: string;
-      items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number }[];
+      items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number; unit?: string }[];
     }) => ipcRenderer.invoke('invoices:update', id, data),
     delete: (id: number) => ipcRenderer.invoke('invoices:delete', id),
   },

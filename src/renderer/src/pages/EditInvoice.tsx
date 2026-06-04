@@ -10,6 +10,7 @@ interface ItemRow {
   useCustom: boolean;
   quantity: string;
   unit_price: string;
+  unit: string;
 }
 
 function newRow(): ItemRow {
@@ -20,6 +21,7 @@ function newRow(): ItemRow {
     useCustom: false,
     quantity: '',
     unit_price: '',
+    unit: '',
   };
 }
 
@@ -55,6 +57,7 @@ export default function EditInvoice() {
         useCustom: !item.merchandise_id,
         quantity: item.quantity.toString(),
         unit_price: item.unit_price.toString(),
+        unit: item.unit || '',
       })));
     });
   }, [customerId, invId]);
@@ -104,6 +107,7 @@ export default function EditInvoice() {
           custom_name: r.useCustom ? r.custom_name.trim() : undefined,
           quantity: parseFloat(r.quantity),
           unit_price: parseFloat(r.unit_price),
+          unit: r.unit || undefined,
         })),
       });
       navigate(`/customers/${customerId}`);
@@ -177,8 +181,9 @@ export default function EditInvoice() {
                 <tr>
                   <th className="w-10 px-3 py-3"></th>
                   <th className="px-3 py-3 text-right font-medium">الصنف</th>
-                  <th className="px-3 py-3 text-center font-medium w-32">الكمية</th>
-                  <th className="px-3 py-3 text-center font-medium w-36">سعر الوحدة</th>
+                  <th className="px-3 py-3 text-center font-medium w-28">الكمية</th>
+                  <th className="px-3 py-3 text-center font-medium w-28">الوحدة</th>
+                  <th className="px-3 py-3 text-center font-medium w-32">سعر الوحدة</th>
                   <th className="px-3 py-3 text-center font-medium w-36">الإجمالي</th>
                 </tr>
               </thead>
@@ -212,6 +217,21 @@ export default function EditInvoice() {
                         <input type="number" min="0" step="0.01" value={row.quantity} onChange={e => updateRow(row.id, { quantity: e.target.value })} placeholder="0" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-center text-slate-900" />
                       </td>
                       <td className="px-3 py-2">
+                        <select
+                          value={row.unit}
+                          onChange={e => updateRow(row.id, { unit: e.target.value })}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-center text-slate-900 bg-white"
+                        >
+                          <option value="">--</option>
+                          <option value="طن">طن</option>
+                          <option value="شكاره">شكاره</option>
+                          <option value="عدد">عدد</option>
+                          <option value="متر">متر</option>
+                          <option value="سيخ">سيخ</option>
+                          <option value="كيلو">كيلو</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
                         <input type="number" min="0" step="0.01" value={row.unit_price} onChange={e => updateRow(row.id, { unit_price: e.target.value })} placeholder="0.00" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-center text-slate-900" />
                       </td>
                       <td className="px-3 py-2 text-center font-semibold text-slate-800">{formatCurrency(rowTotal)}</td>
@@ -221,7 +241,7 @@ export default function EditInvoice() {
               </tbody>
               <tfoot className="bg-slate-100 border-t-2 border-slate-200">
                 <tr>
-                  <td colSpan={4} className="px-4 py-3 font-bold text-slate-700 text-right">الإجمالي الكلي</td>
+                  <td colSpan={5} className="px-4 py-3 font-bold text-slate-700 text-right">الإجمالي الكلي</td>
                   <td className="px-4 py-3 text-center font-bold text-lg text-slate-900">{formatCurrency(grandTotal)}</td>
                 </tr>
               </tfoot>

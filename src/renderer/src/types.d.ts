@@ -17,14 +17,14 @@ declare global {
           customer_id: number;
           date: string;
           notes?: string;
-          items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number }[];
+          items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number; unit?: string }[];
         }) => Promise<{ id: number; invoice_number: string }>;
         getByCustomer: (customerId: number) => Promise<Invoice[]>;
         getById: (id: number) => Promise<Invoice | null>;
         update: (id: number, data: {
           date: string;
           notes?: string;
-          items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number }[];
+          items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number; unit?: string }[];
         }) => Promise<{ success: boolean }>;
         delete: (id: number) => Promise<{ success: boolean }>;
       };
@@ -53,7 +53,7 @@ declare global {
           supplier_id: number;
           date: string;
           notes?: string;
-          items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number }[];
+          items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number; unit?: string }[];
         }) => Promise<{ id: number; invoice_number: string }>;
         getBySupplier: (supplierId: number) => Promise<SupplyInvoice[]>;
         delete: (id: number) => Promise<{ success: boolean }>;
@@ -103,6 +103,7 @@ declare global {
     item_name?: string;
     quantity: number;
     unit_price: number;
+    unit?: string;
   }
 
   interface Payment {
@@ -156,6 +157,7 @@ declare global {
     merchandise_name?: string;
     quantity: number;
     unit_price: number;
+    unit?: string;
   }
 
   interface SupplierPayment {

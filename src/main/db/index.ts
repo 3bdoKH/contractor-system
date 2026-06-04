@@ -48,7 +48,8 @@ function initDb(db: Database.Database) {
       merchandise_id INTEGER REFERENCES merchandise(id),
       custom_name TEXT,
       quantity REAL NOT NULL,
-      unit_price REAL NOT NULL
+      unit_price REAL NOT NULL,
+      unit TEXT
     );
 
     CREATE TABLE IF NOT EXISTS payments (
@@ -85,7 +86,8 @@ function initDb(db: Database.Database) {
       merchandise_id INTEGER REFERENCES merchandise(id),
       custom_name TEXT,
       quantity REAL NOT NULL,
-      unit_price REAL NOT NULL
+      unit_price REAL NOT NULL,
+      unit TEXT
     );
 
     CREATE TABLE IF NOT EXISTS supplier_payments (
@@ -117,6 +119,18 @@ function initDb(db: Database.Database) {
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // Migrate existing databases to add the new 'unit' column
+  try {
+    db.prepare('ALTER TABLE invoice_items ADD COLUMN unit TEXT').run();
+  } catch (err) {
+    // Column already exists or table doesn't exist yet
+  }
+  try {
+    db.prepare('ALTER TABLE supply_invoice_items ADD COLUMN unit TEXT').run();
+  } catch (err) {
+    // Column already exists or table doesn't exist yet
+  }
 
   seedMerchandise(db);
   seedSettings(db);

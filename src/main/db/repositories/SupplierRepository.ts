@@ -20,6 +20,7 @@ export interface SupplyInvoiceItem {
   merchandise_name?: string | null;
   quantity: number;
   unit_price: number;
+  unit?: string | null;
 }
 
 export interface SupplierPayment {
@@ -57,6 +58,7 @@ export interface CreateSupplyInvoiceData {
     custom_name?: string | null;
     quantity: number;
     unit_price: number;
+    unit?: string | null;
   }[];
 }
 
@@ -201,7 +203,7 @@ export class SupplierRepository {
       const invoiceId = inv.lastInsertRowid;
 
       const insertItem = this.db.prepare(
-        'INSERT INTO supply_invoice_items (supply_invoice_id, merchandise_id, custom_name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO supply_invoice_items (supply_invoice_id, merchandise_id, custom_name, quantity, unit_price, unit) VALUES (?, ?, ?, ?, ?, ?)'
       );
 
       for (const item of data.items) {
@@ -210,7 +212,8 @@ export class SupplierRepository {
           item.merchandise_id ?? null,
           item.custom_name ?? null,
           item.quantity,
-          item.unit_price
+          item.unit_price,
+          item.unit ?? null
         );
       }
 

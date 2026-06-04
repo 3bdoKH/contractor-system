@@ -6,6 +6,7 @@ interface InvoiceItem {
   custom_name?: string | null;
   quantity: number;
   unit_price: number;
+  unit?: string | null;
 }
 
 interface CreateInvoiceData {
@@ -48,7 +49,7 @@ export function registerInvoiceHandlers() {
       const invoiceId = inv.lastInsertRowid;
 
       const insertItem = db.prepare(
-        'INSERT INTO invoice_items (invoice_id, merchandise_id, custom_name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO invoice_items (invoice_id, merchandise_id, custom_name, quantity, unit_price, unit) VALUES (?, ?, ?, ?, ?, ?)'
       );
 
       for (const item of data.items) {
@@ -57,7 +58,8 @@ export function registerInvoiceHandlers() {
           item.merchandise_id ?? null,
           item.custom_name ?? null,
           item.quantity,
-          item.unit_price
+          item.unit_price,
+          item.unit ?? null
         );
       }
 
@@ -123,7 +125,7 @@ export function registerInvoiceHandlers() {
       db.prepare('DELETE FROM invoice_items WHERE invoice_id = ?').run(id);
 
       const insertItem = db.prepare(
-        'INSERT INTO invoice_items (invoice_id, merchandise_id, custom_name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO invoice_items (invoice_id, merchandise_id, custom_name, quantity, unit_price, unit) VALUES (?, ?, ?, ?, ?, ?)'
       );
       for (const item of data.items) {
         insertItem.run(
@@ -131,7 +133,8 @@ export function registerInvoiceHandlers() {
           item.merchandise_id ?? null,
           item.custom_name ?? null,
           item.quantity,
-          item.unit_price
+          item.unit_price,
+          item.unit ?? null
         );
       }
     });
