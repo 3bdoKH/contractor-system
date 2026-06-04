@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
-import { formatCurrency, getInvoiceStatus, STATUS_LABELS } from '../utils';
+import { formatCurrency } from '../utils';
 
 interface PaymentModalProps {
   invoice: Invoice;
@@ -24,6 +24,10 @@ export default function PaymentModal({ invoice, onClose, onSaved }: PaymentModal
     const amountNum = parseFloat(amount);
     if (!amountNum || amountNum <= 0) {
       setError('يرجى إدخال مبلغ صحيح');
+      return;
+    }
+    if (amountNum > remaining) {
+      setError('مبلغ الدفعة لا يمكن أن يتجاوز المبلغ المتبقي للفاتورة');
       return;
     }
     if (!date) {
@@ -96,6 +100,7 @@ export default function PaymentModal({ invoice, onClose, onSaved }: PaymentModal
             <input
               type="number"
               min="0.01"
+              // max={remaining}
               step="0.01"
               value={amount}
               onChange={e => setAmount(e.target.value)}
