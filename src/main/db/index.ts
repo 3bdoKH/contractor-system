@@ -118,6 +118,15 @@ function initDb(db: Database.Database) {
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS inventory_adjustments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchandise_id INTEGER NOT NULL UNIQUE REFERENCES merchandise(id) ON DELETE CASCADE,
+      manual_quantity REAL,
+      manual_price REAL,
+      notes TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrate existing databases to add the new 'unit' column

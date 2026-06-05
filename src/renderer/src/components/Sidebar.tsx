@@ -12,10 +12,9 @@ const navItems = [
 
 export default function Sidebar() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 ${
-      isActive
-        ? 'bg-blue-600 text-white shadow-sm'
-        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 ${isActive
+      ? 'bg-blue-600 text-white shadow-sm'
+      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
     }`;
 
   return (
@@ -23,7 +22,6 @@ export default function Sidebar() {
       {/* Logo / App Name */}
       <div className="px-6 py-5 border-b border-slate-700">
         <h1 className="text-lg font-bold text-white leading-tight">الحاج حسن البطاط</h1>
-        <p className="text-xs text-slate-400 mt-0.5">نظام إدارة المقاول</p>
       </div>
 
       {/* Main Navigation */}

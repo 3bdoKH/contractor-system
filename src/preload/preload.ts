@@ -189,6 +189,16 @@ const api = {
       ipcRenderer.invoke('inventory:getReport', filters),
     printReport: (filters?: { from?: string; to?: string }, titleLabel?: string) =>
       ipcRenderer.invoke('print:inventoryReport', filters, titleLabel),
+    getAdjustments: () =>
+      ipcRenderer.invoke('inventory:getAdjustments'),
+    setAdjustment: (data: { merchandise_id: number; manual_quantity: number | null; manual_price: number | null; notes?: string }) =>
+      ipcRenderer.invoke('inventory:setAdjustment', data),
+    removeAdjustment: (merchandise_id: number) =>
+      ipcRenderer.invoke('inventory:removeAdjustment', merchandise_id),
+    resetAllAdjustments: () =>
+      ipcRenderer.invoke('inventory:resetAllAdjustments'),
+    resetToZero: () =>
+      ipcRenderer.invoke('inventory:resetToZero'),
   },
 };
 

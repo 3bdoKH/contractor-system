@@ -79,6 +79,11 @@ declare global {
       inventory: {
         getReport: (filters?: { from?: string; to?: string }) => Promise<InventoryReport>;
         printReport: (filters?: { from?: string; to?: string }, titleLabel?: string) => Promise<string>;
+        getAdjustments: () => Promise<InventoryAdjustment[]>;
+        setAdjustment: (data: { merchandise_id: number; manual_quantity: number | null; manual_price: number | null; notes?: string }) => Promise<{ success: boolean }>;
+        removeAdjustment: (merchandise_id: number) => Promise<{ success: boolean }>;
+        resetAllAdjustments: () => Promise<{ success: boolean }>;
+        resetToZero: () => Promise<{ success: boolean; count: number }>;
       };
     };
   }
@@ -208,9 +213,20 @@ declare global {
     opening_stock: number;
     incoming: number;
     outgoing: number;
+    auto_closing_stock: number;
     closing_stock: number;
     latest_price: number;
     valuation: number;
+    has_manual_override: boolean;
+  }
+
+  interface InventoryAdjustment {
+    id: number;
+    merchandise_id: number;
+    manual_quantity: number | null;
+    manual_price: number | null;
+    notes: string | null;
+    updated_at: string;
   }
 
   interface InventoryReport {

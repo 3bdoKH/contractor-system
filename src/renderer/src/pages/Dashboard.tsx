@@ -133,22 +133,22 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
         {loading
           ? [...Array(7)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse h-32"></div>
-            ))
+            <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse h-32"></div>
+          ))
           : summaryCards.map((card) => {
-              const Icon = card.icon;
-              return (
-                <div key={card.label} className={`${card.bg} rounded-2xl p-5 border border-white shadow-sm`}>
-                  <div className="flex items-start justify-between">
-                    <div className={`p-2.5 rounded-xl ${card.color} bg-opacity-15`}>
-                      <Icon size={20} className={card.text} />
-                    </div>
+            const Icon = card.icon;
+            return (
+              <div key={card.label} className={`${card.bg} rounded-2xl p-5 border border-white shadow-sm`}>
+                <div className="flex items-start justify-between">
+                  <div className={`p-2.5 rounded-xl ${card.color} bg-opacity-15`}>
+                    <Icon size={20} className={card.text} />
                   </div>
-                  <p className="text-2xl font-black text-slate-900 mt-3 leading-tight">{card.value}</p>
-                  <p className={`text-xs font-bold ${card.text} mt-1 uppercase tracking-wider`}>{card.label}</p>
                 </div>
-              );
-            })}
+                <p className="text-2xl font-black text-slate-900 mt-3 leading-tight">{card.value}</p>
+                <p className={`text-xs font-bold ${card.text} mt-1 uppercase tracking-wider`}>{card.label}</p>
+              </div>
+            );
+          })}
       </div>
 
       {/* Debtors list */}
