@@ -326,10 +326,9 @@ export default function InventoryReport() {
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
               <tr>
                 <th className="px-5 py-3.5 text-right">اسم البضاعة / المادة</th>
-                <th className="px-4 py-3.5 text-center">رصيد أول</th>
                 <th className="px-4 py-3.5 text-center">الوارد (+)</th>
                 <th className="px-4 py-3.5 text-center">المنصرف (-)</th>
-                <th className="px-4 py-3.5 text-center">رصيد آخر</th>
+                <th className="px-4 py-3.5 text-center"> الرصيد</th>
                 <th className="px-4 py-3.5 text-center">آخر سعر شراء</th>
                 <th className="px-4 py-3.5 text-center">القيمة التقديرية</th>
                 {adjustMode && <th className="px-4 py-3.5 text-center w-24">تعديل</th>}
@@ -365,14 +364,12 @@ export default function InventoryReport() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 text-center font-medium text-slate-600">
-                        {item.opening_stock.toLocaleString('ar-EG', { maximumFractionDigits: 2 })}
+
+                      <td className="px-4 py-3.5 text-center font-bold text-slate-900">
+                        {item.incoming > 0 ? `${item.incoming.toLocaleString('ar-EG', { maximumFractionDigits: 2 })}` : '—'}
                       </td>
-                      <td className="px-4 py-3.5 text-center font-semibold text-emerald-600">
-                        {item.incoming > 0 ? `+${item.incoming.toLocaleString('ar-EG', { maximumFractionDigits: 2 })}` : '—'}
-                      </td>
-                      <td className="px-4 py-3.5 text-center font-semibold text-red-500">
-                        {item.outgoing > 0 ? `-${item.outgoing.toLocaleString('ar-EG', { maximumFractionDigits: 2 })}` : '—'}
+                      <td className="px-4 py-3.5 text-center font-bold text-slate-900">
+                        {item.outgoing > 0 ? `${item.outgoing.toLocaleString('ar-EG', { maximumFractionDigits: 2 })}` : '—'}
                       </td>
                       <td className="px-4 py-3.5 text-center font-bold">
                         {isEditing ? (
@@ -394,7 +391,7 @@ export default function InventoryReport() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3.5 text-center font-medium text-slate-600">
+                      <td className="px-4 py-3.5 text-center font-bold text-slate-900">
                         {isEditing ? (
                           <input
                             type="number"

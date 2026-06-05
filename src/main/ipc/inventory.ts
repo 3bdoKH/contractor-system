@@ -194,14 +194,13 @@ export function registerInventoryHandlers() {
     };
 
     const tableRows = items.map((item, idx) => `
-      <tr style="background:${idx % 2 === 0 ? '#fff' : '#f8f9fa'}">
-        <td style="text-align: right; padding: 10px; border-bottom: 1px solid #dee2e6;">${item.name}${item.has_manual_override ? ' ✏️' : ''}</td>
-        <td style="text-align: center; padding: 10px; border-bottom: 1px solid #dee2e6;">${formatNum(item.opening_stock)}</td>
-        <td style="text-align: center; padding: 10px; border-bottom: 1px solid #dee2e6; color: #198754;">+${formatNum(item.incoming)}</td>
-        <td style="text-align: center; padding: 10px; border-bottom: 1px solid #dee2e6; color: #dc3545;">-${formatNum(item.outgoing)}</td>
-        <td style="text-align: center; padding: 10px; border-bottom: 1px solid #dee2e6; font-weight: bold; ${item.has_manual_override ? 'color:#7c3aed;' : ''}">${formatNum(item.closing_stock)}</td>
-        <td style="text-align: center; padding: 10px; border-bottom: 1px solid #dee2e6;">${formatNum(item.latest_price)} ج.م</td>
-        <td style="text-align: center; padding: 10px; border-bottom: 1px solid #dee2e6; font-weight: bold;">${formatNum(item.valuation)} ج.م</td>
+      <tr style="background:${idx % 2 === 0 ? '#fff' : '#f4f4f4'}">
+        <td style="text-align: right; padding: 10px; border: 1px solid #ccc;">${item.name}${item.has_manual_override ? ' *' : ''}</td>
+        <td style="text-align: center; padding: 10px; border: 1px solid #ccc;">${formatNum(item.incoming)}</td>
+        <td style="text-align: center; padding: 10px; border: 1px solid #ccc;">${formatNum(item.outgoing)}</td>
+        <td style="text-align: center; padding: 10px; border: 1px solid #ccc; font-weight: bold;">${formatNum(item.closing_stock)}</td>
+        <td style="text-align: center; padding: 10px; border: 1px solid #ccc;">${formatNum(item.latest_price)} ج.م</td>
+        <td style="text-align: center; padding: 10px; border: 1px solid #ccc; font-weight: bold;">${formatNum(item.valuation)} ج.م</td>
       </tr>
     `).join('');
 
@@ -212,21 +211,21 @@ export function registerInventoryHandlers() {
         <meta charset="utf-8">
         <title>${reportTitle}</title>
         <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; color: #333; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
-          .header h1 { margin: 0; font-size: 24px; color: #111; }
-          .header .sub { margin: 5px 0 0 0; font-size: 14px; color: #666; }
-          .date-range { text-align: right; font-size: 12px; color: #555; margin-bottom: 20px; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; color: #000; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
+          .header h1 { margin: 0; font-size: 24px; color: #000; }
+          .header .sub { margin: 5px 0 0 0; font-size: 14px; color: #333; }
+          .date-range { text-align: right; font-size: 12px; color: #333; margin-bottom: 20px; }
           .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
-          .summary-card { background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; }
-          .summary-card .label { font-size: 11px; color: #718096; margin-bottom: 5px; font-weight: bold; }
-          .summary-card .value { font-size: 18px; font-weight: 900; color: #2d3748; }
+          .summary-card { border: 1px solid #999; padding: 15px; text-align: center; }
+          .summary-card .label { font-size: 11px; color: #444; margin-bottom: 5px; font-weight: bold; }
+          .summary-card .value { font-size: 18px; font-weight: 900; color: #000; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-          th { background: #343a40; color: #fff; padding: 10px; text-align: center; border: 1px solid #dee2e6; }
+          th { background: #000; color: #fff; padding: 10px; text-align: center; border: 1px solid #000; }
           th:first-child { text-align: right; }
-          td { border: 1px solid #dee2e6; }
-          .footer-note { margin-top: 30px; text-align: center; font-size: 11px; color: #718096; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-          .legend { font-size: 10px; color: #7c3aed; margin-bottom: 10px; }
+          td { border: 1px solid #ccc; }
+          .footer-note { margin-top: 30px; text-align: center; font-size: 11px; color: #333; border-top: 1px solid #999; padding-top: 10px; }
+          .legend { font-size: 10px; color: #333; margin-bottom: 10px; }
         </style>
       </head>
       <body>
@@ -241,31 +240,15 @@ export function registerInventoryHandlers() {
           ${filters?.to ? `إلى ${filters.to}` : 'اليوم'}
         </div>
 
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="label">عدد المواد</div>
-            <div class="value">${summary.total_items}</div>
-          </div>
-          <div class="summary-card">
-            <div class="label">إجمالي كمية المخزون</div>
-            <div class="value">${formatNum(summary.total_stock_qty)}</div>
-          </div>
-          <div class="summary-card">
-            <div class="label">إجمالي قيمة المخزون الحالي</div>
-            <div class="value">${formatNum(summary.total_valuation)} ج.م</div>
-          </div>
-        </div>
-
         ${items.some(i => i.has_manual_override) ? '<div class="legend">✏️ = كمية يدوية مُعدَّلة</div>' : ''}
 
         <table>
           <thead>
             <tr>
               <th style="text-align: right; width: 25%;">اسم البضاعة / المادة</th>
-              <th style="width: 12%;">رصيد أول</th>
               <th style="width: 12%;">الوارد (+)</th>
               <th style="width: 12%;">المنصرف (-)</th>
-              <th style="width: 12%;">رصيد آخر</th>
+              <th style="width: 12%;"> الرصيد</th>
               <th style="width: 13%;">آخر سعر شراء</th>
               <th style="width: 14%;">القيمة التقديرية</th>
             </tr>

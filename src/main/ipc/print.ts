@@ -13,17 +13,150 @@ function getStatus(total: number, paid: number): string {
   return 'غير مدفوع';
 }
 
-function getStatusColor(total: number, paid: number): string {
-  if (paid >= total) return '#198754';
-  if (paid > 0) return '#fd7e14';
-  return '#dc3545';
-}
+// Shared B&W CSS for both customer and supplier reports
+const SHARED_CSS = (fontPath: string) => `
+  @font-face {
+    font-family: 'Cairo';
+    src: url('${fontPath}') format('truetype');
+    font-weight: 400 700;
+    font-style: normal;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Cairo', sans-serif;
+    font-size: 12px;
+    color: #000;
+    direction: rtl;
+    padding: 30px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 12px;
+  }
+
+  .header h1 { font-size: 22px; font-weight: 700; color: #000; }
+  .header .print-date { font-size: 11px; color: #444; margin-top: 4px; }
+  .header .sub-title { font-size: 13px; color: #000; margin-top: 2px; font-weight: 600; }
+
+  .footer-note {
+    margin-top: 20px;
+    padding: 10px 14px;
+    border: 1px solid #999;
+    font-size: 11px;
+    color: #000;
+    text-align: center;
+  }
+
+  .entity-info {
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid #999;
+  }
+
+  .entity-info .name { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .entity-info .detail { font-size: 11px; color: #333; margin-top: 3px; }
+
+  .summary-box {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .summary-card {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #999;
+  }
+
+  .summary-card .label { font-size: 10px; color: #444; margin-bottom: 4px; }
+  .summary-card .value { font-size: 14px; font-weight: 700; color: #000; }
+
+  .invoice-block {
+    margin-bottom: 20px;
+    border: 1px solid #999;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+
+  .invoice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #000;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  .items-table th {
+    background: #e0e0e0;
+    color: #000;
+    padding: 7px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    border-bottom: 1px solid #999;
+    border: 1px solid #bbb;
+  }
+
+  .items-table td {
+    padding: 6px 10px;
+    font-size: 11px;
+    border: 1px solid #ddd;
+  }
+
+  .invoice-totals {
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 12px;
+    border-top: 2px solid #000;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .payments-section { border-top: 1px solid #999; }
+
+  .payments-header {
+    background: #e0e0e0;
+    color: #000;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 1px solid #999;
+  }
+
+  .payments-table th {
+    background: #f0f0f0;
+    padding: 5px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid #ccc;
+  }
+
+  .payments-table td {
+    padding: 5px 10px;
+    font-size: 10px;
+    border: 1px solid #ddd;
+  }
+
+  @media print {
+    body { padding: 15px; }
+    .invoice-block { page-break-inside: avoid; }
+  }
+`;
 
 export function registerPrintHandlers() {
   const db = getDb();
 
   ipcMain.handle('print:customerReport', async (_event, customerId: number) => {
-    // Load settings
     const settingRows = db.prepare('SELECT key, value FROM settings').all() as any[];
     const cfg: Record<string, string> = {};
     settingRows.forEach((s: any) => { cfg[s.key] = s.value; });
@@ -47,11 +180,9 @@ export function registerPrintHandlers() {
         LEFT JOIN merchandise m ON m.id = ii.merchandise_id
         WHERE ii.invoice_id = ?
       `).all(inv.id) as any[];
-
       const payments = db.prepare(`
         SELECT * FROM payments WHERE invoice_id = ? ORDER BY date ASC
       `).all(inv.id) as any[];
-
       return { ...inv, items, payments };
     });
 
@@ -59,15 +190,13 @@ export function registerPrintHandlers() {
     const totalPaid = invoicesWithDetails.reduce((s, i) => s + i.total_paid, 0);
     const remaining = totalInvoiced - totalPaid;
 
-    // Build HTML
     const invoicesHTML = invoicesWithDetails.map(inv => {
       const invPaid = inv.total_paid;
       const invRemaining = inv.total - invPaid;
       const status = getStatus(inv.total, invPaid);
-      const statusColor = getStatusColor(inv.total, invPaid);
 
       const itemsRows = inv.items.map((item: any, i: number) => `
-        <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'}">
+        <tr style="background:${i % 2 === 0 ? '#fff' : '#f4f4f4'}">
           <td style="text-align: center;">${item.item_name || ''}</td>
           <td style="text-align: center;">${item.quantity}</td>
           <td style="text-align: center;">${item.unit || '-'}</td>
@@ -105,7 +234,7 @@ export function registerPrintHandlers() {
           <div class="invoice-header">
             <span>فاتورة رقم: ${inv.invoice_number}</span>
             <span>التاريخ: ${inv.date}</span>
-            <span style="color:${statusColor}; font-weight:bold">${status}</span>
+            <span style="font-weight:bold">${status}</span>
           </div>
           <table class="items-table">
             <thead>
@@ -121,149 +250,21 @@ export function registerPrintHandlers() {
           </table>
           <div class="invoice-totals">
             <span>الإجمالي: <strong>${formatNum(inv.total)} ج.م</strong></span>
-            <span>المدفوع: <strong style="color:#198754">${formatNum(invPaid)} ج.م</strong></span>
-            <span>المتبقي: <strong style="color:${invRemaining > 0 ? '#dc3545' : '#198754'}">${formatNum(invRemaining)} ج.م</strong></span>
+            <span>المدفوع: <strong>${formatNum(invPaid)} ج.م</strong></span>
+            <span>المتبقي: <strong>${formatNum(invRemaining)} ج.م</strong></span>
           </div>
           ${paymentsRows}
         </div>
       `;
     }).join('');
 
+    const fontPath = path.join(app.getAppPath(), 'assets', 'font', 'Cairo.ttf').replace(/\\/g, '/');
     const html = `
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
       <head>
         <meta charset="UTF-8">
-        <style>
-          @font-face {
-              font-family: 'Cairo';
-              src: url('${path.join(app.getAppPath(), 'assets', 'font', 'Cairo.ttf').replace(/\\/g, '/')}') format('truetype');
-              font-weight: 400 700;
-              font-style: normal;
-            }
-
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-
-          body {
-            font-family: 'Cairo', sans-serif;
-            font-size: 12px;
-            color: #212529;
-            direction: rtl;
-            padding: 30px;
-          }
-
-          .header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #343a40;
-            padding-bottom: 12px;
-          }
-
-          .header h1 { font-size: 22px; font-weight: 700; color: #343a40; }
-          .header .print-date { font-size: 11px; color: #6c757d; margin-top: 4px; }
-          .header .sub-title { font-size: 13px; color: #495057; margin-top: 2px; font-weight: 600; }
-          .footer-note { margin-top: 20px; padding: 10px 14px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 11px; color: #495057; text-align: center; }
-
-          .customer-info {
-            margin-bottom: 16px;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border: 1px solid #dee2e6;
-          }
-
-          .customer-info .name { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
-          .customer-info .detail { font-size: 11px; color: #495057; margin-top: 3px; }
-
-          .summary-box {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-          }
-
-          .summary-card {
-            padding: 10px;
-            border-radius: 6px;
-            text-align: center;
-            border: 1px solid #dee2e6;
-          }
-
-          .summary-card .label { font-size: 10px; color: #6c757d; margin-bottom: 4px; }
-          .summary-card .value { font-size: 14px; font-weight: 700; }
-
-          .invoice-block {
-            margin-bottom: 20px;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            overflow: hidden;
-            page-break-inside: avoid;
-          }
-
-          .invoice-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #343a40;
-            color: white;
-            padding: 8px 12px;
-            font-size: 11px;
-          }
-
-          table { width: 100%; border-collapse: collapse; }
-
-          .items-table th {
-            background: #e9ecef;
-            padding: 7px 10px;
-            font-size: 11px;
-            font-weight: 600;
-            border-bottom: 1px solid #dee2e6;
-          }
-
-          .items-table td {
-            padding: 6px 10px;
-            font-size: 11px;
-            border-bottom: 1px solid #f0f0f0;
-          }
-
-          .invoice-totals {
-            display: flex;
-            justify-content: space-around;
-            padding: 8px 12px;
-            background: #fff3cd;
-            border-top: 1px solid #ffc107;
-            font-size: 11px;
-          }
-
-          .payments-section { border-top: 1px solid #dee2e6; }
-
-          .payments-header {
-            background: #e8f5e9;
-            color: #1b5e20;
-            padding: 6px 12px;
-            font-size: 11px;
-            font-weight: 600;
-            text-align: center;
-          }
-
-          .payments-table th {
-            background: #f1f8f1;
-            padding: 5px 10px;
-            font-size: 10px;
-            font-weight: 600;
-          }
-
-          .payments-table td {
-            padding: 5px 10px;
-            font-size: 10px;
-            border-bottom: 1px solid #f0f0f0;
-          }
-
-          @media print {
-            body { padding: 15px; }
-            .invoice-block { page-break-inside: avoid; }
-          }
-        </style>
+        <style>${SHARED_CSS(fontPath)}</style>
       </head>
       <body>
         <div class="header">
@@ -272,7 +273,7 @@ export function registerPrintHandlers() {
           <div class="print-date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</div>
         </div>
 
-        <div class="customer-info">
+        <div class="entity-info">
           <div class="name">${customer.name}</div>
           ${customer.phone ? `<div class="detail">الهاتف: ${customer.phone}</div>` : ''}
           ${customer.address ? `<div class="detail">العنوان: ${customer.address}</div>` : ''}
@@ -285,11 +286,11 @@ export function registerPrintHandlers() {
           </div>
           <div class="summary-card">
             <div class="label">إجمالي المدفوع</div>
-            <div class="value" style="color:#198754">${formatNum(totalPaid)} ج.م</div>
+            <div class="value">${formatNum(totalPaid)} ج.م</div>
           </div>
           <div class="summary-card">
             <div class="label">الرصيد المتبقي</div>
-            <div class="value" style="color:${remaining > 0 ? '#dc3545' : '#198754'}">${formatNum(remaining)} ج.م</div>
+            <div class="value">${formatNum(remaining)} ج.م</div>
           </div>
         </div>
 
@@ -299,33 +300,21 @@ export function registerPrintHandlers() {
       </html>
     `;
 
-    // Write HTML to temp file
     const tmpHtml = path.join(app.getPath('temp'), `report-${customerId}.html`);
     fs.writeFileSync(tmpHtml, html, 'utf-8');
-
-    // Use hidden BrowserWindow to print to PDF
     const win = new BrowserWindow({ show: false });
     await win.loadFile(tmpHtml);
-
     const docsDir = app.getPath('documents');
     const outputPath = path.join(docsDir, `customer-${customerId}-${Date.now()}.pdf`);
-
-    const pdfBuffer = await win.webContents.printToPDF({
-      pageSize: 'A4',
-      printBackground: true,
-      margins: { marginType: 'default' },
-    });
-
+    const pdfBuffer = await win.webContents.printToPDF({ pageSize: 'A4', printBackground: true, margins: { marginType: 'default' } });
     win.close();
     fs.writeFileSync(outputPath, pdfBuffer);
     fs.unlinkSync(tmpHtml);
-
     shell.openPath(outputPath);
     return outputPath;
   });
 
   ipcMain.handle('print:supplierReport', async (_event, supplierId: number) => {
-    // Load settings
     const settingRows = db.prepare('SELECT key, value FROM settings').all() as any[];
     const cfg: Record<string, string> = {};
     settingRows.forEach((s: any) => { cfg[s.key] = s.value; });
@@ -349,11 +338,9 @@ export function registerPrintHandlers() {
         LEFT JOIN merchandise m ON m.id = sii.merchandise_id
         WHERE sii.supply_invoice_id = ?
       `).all(inv.id) as any[];
-
       const payments = db.prepare(`
         SELECT * FROM supplier_payments WHERE supply_invoice_id = ? ORDER BY date ASC
       `).all(inv.id) as any[];
-
       return { ...inv, items, payments };
     });
 
@@ -365,10 +352,9 @@ export function registerPrintHandlers() {
       const invPaid = inv.total_paid;
       const invRemaining = inv.total - invPaid;
       const status = getStatus(inv.total, invPaid);
-      const statusColor = getStatusColor(inv.total, invPaid);
 
       const itemsRows = inv.items.map((item: any, i: number) => `
-        <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'}">
+        <tr style="background:${i % 2 === 0 ? '#fff' : '#f4f4f4'}">
           <td style="text-align: center;">${item.item_name || ''}</td>
           <td style="text-align: center;">${item.quantity}</td>
           <td style="text-align: center;">${item.unit || '-'}</td>
@@ -406,7 +392,7 @@ export function registerPrintHandlers() {
           <div class="invoice-header">
             <span>فاتورة توريد رقم: ${inv.invoice_number}</span>
             <span>التاريخ: ${inv.date}</span>
-            <span style="color:${statusColor}; font-weight:bold">${status}</span>
+            <span style="font-weight:bold">${status}</span>
           </div>
           <table class="items-table">
             <thead>
@@ -422,149 +408,21 @@ export function registerPrintHandlers() {
           </table>
           <div class="invoice-totals">
             <span>الإجمالي: <strong>${formatNum(inv.total)} ج.م</strong></span>
-            <span>المدفوع: <strong style="color:#198754">${formatNum(invPaid)} ج.م</strong></span>
-            <span>المتبقي: <strong style="color:${invRemaining > 0 ? '#dc3545' : '#198754'}">${formatNum(invRemaining)} ج.م</strong></span>
+            <span>المدفوع: <strong>${formatNum(invPaid)} ج.م</strong></span>
+            <span>المتبقي: <strong>${formatNum(invRemaining)} ج.م</strong></span>
           </div>
           ${paymentsRows}
         </div>
       `;
     }).join('');
 
+    const fontPath = path.join(app.getAppPath(), 'assets', 'font', 'Cairo.ttf').replace(/\\/g, '/');
     const html = `
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
       <head>
         <meta charset="UTF-8">
-        <style>
-          @font-face {
-              font-family: 'Cairo';
-              src: url('${path.join(app.getAppPath(), 'assets', 'font', 'Cairo.ttf').replace(/\\/g, '/')}') format('truetype');
-              font-weight: 400 700;
-              font-style: normal;
-            }
-
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-
-          body {
-            font-family: 'Cairo', sans-serif;
-            font-size: 12px;
-            color: #212529;
-            direction: rtl;
-            padding: 30px;
-          }
-
-          .header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #343a40;
-            padding-bottom: 12px;
-          }
-
-          .header h1 { font-size: 22px; font-weight: 700; color: #343a40; }
-          .header .print-date { font-size: 11px; color: #6c757d; margin-top: 4px; }
-          .header .sub-title { font-size: 13px; color: #495057; margin-top: 2px; font-weight: 600; }
-          .footer-note { margin-top: 20px; padding: 10px 14px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 11px; color: #495057; text-align: center; }
-
-          .supplier-info {
-            margin-bottom: 16px;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border: 1px solid #dee2e6;
-          }
-
-          .supplier-info .name { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
-          .supplier-info .detail { font-size: 11px; color: #495057; margin-top: 3px; }
-
-          .summary-box {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-          }
-
-          .summary-card {
-            padding: 10px;
-            border-radius: 6px;
-            text-align: center;
-            border: 1px solid #dee2e6;
-          }
-
-          .summary-card .label { font-size: 10px; color: #6c757d; margin-bottom: 4px; }
-          .summary-card .value { font-size: 14px; font-weight: 700; }
-
-          .invoice-block {
-            margin-bottom: 20px;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            overflow: hidden;
-            page-break-inside: avoid;
-          }
-
-          .invoice-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #343a40;
-            color: white;
-            padding: 8px 12px;
-            font-size: 11px;
-          }
-
-          table { width: 100%; border-collapse: collapse; }
-
-          .items-table th {
-            background: #e9ecef;
-            padding: 7px 10px;
-            font-size: 11px;
-            font-weight: 600;
-            border-bottom: 1px solid #dee2e6;
-          }
-
-          .items-table td {
-            padding: 6px 10px;
-            font-size: 11px;
-            border-bottom: 1px solid #f0f0f0;
-          }
-
-          .invoice-totals {
-            display: flex;
-            justify-content: space-around;
-            padding: 8px 12px;
-            background: #fff3cd;
-            border-top: 1px solid #ffc107;
-            font-size: 11px;
-          }
-
-          .payments-section { border-top: 1px solid #dee2e6; }
-
-          .payments-header {
-            background: #e8f5e9;
-            color: #1b5e20;
-            padding: 6px 12px;
-            font-size: 11px;
-            font-weight: 600;
-            text-align: center;
-          }
-
-          .payments-table th {
-            background: #f1f8f1;
-            padding: 5px 10px;
-            font-size: 10px;
-            font-weight: 600;
-          }
-
-          .payments-table td {
-            padding: 5px 10px;
-            font-size: 10px;
-            border-bottom: 1px solid #f0f0f0;
-          }
-
-          @media print {
-            body { padding: 15px; }
-            .invoice-block { page-break-inside: avoid; }
-          }
-        </style>
+        <style>${SHARED_CSS(fontPath)}</style>
       </head>
       <body>
         <div class="header">
@@ -573,7 +431,7 @@ export function registerPrintHandlers() {
           <div class="print-date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</div>
         </div>
 
-        <div class="supplier-info">
+        <div class="entity-info">
           <div class="name">${supplier.name}</div>
           ${supplier.phone ? `<div class="detail">الهاتف: ${supplier.phone}</div>` : ''}
           ${supplier.address ? `<div class="detail">العنوان: ${supplier.address}</div>` : ''}
@@ -586,11 +444,11 @@ export function registerPrintHandlers() {
           </div>
           <div class="summary-card">
             <div class="label">إجمالي المدفوع</div>
-            <div class="value" style="color:#198754">${formatNum(totalPaid)} ج.م</div>
+            <div class="value">${formatNum(totalPaid)} ج.م</div>
           </div>
           <div class="summary-card">
             <div class="label">المستحق للمورد</div>
-            <div class="value" style="color:${remaining > 0 ? '#dc3545' : '#198754'}">${formatNum(remaining)} ج.م</div>
+            <div class="value">${formatNum(remaining)} ج.م</div>
           </div>
         </div>
 
@@ -602,23 +460,14 @@ export function registerPrintHandlers() {
 
     const tmpHtml = path.join(app.getPath('temp'), `supplier-report-${supplierId}.html`);
     fs.writeFileSync(tmpHtml, html, 'utf-8');
-
     const win = new BrowserWindow({ show: false });
     await win.loadFile(tmpHtml);
-
     const docsDir = app.getPath('documents');
     const outputPath = path.join(docsDir, `supplier-${supplierId}-${Date.now()}.pdf`);
-
-    const pdfBuffer = await win.webContents.printToPDF({
-      pageSize: 'A4',
-      printBackground: true,
-      margins: { marginType: 'default' },
-    });
-
+    const pdfBuffer = await win.webContents.printToPDF({ pageSize: 'A4', printBackground: true, margins: { marginType: 'default' } });
     win.close();
     fs.writeFileSync(outputPath, pdfBuffer);
     fs.unlinkSync(tmpHtml);
-
     shell.openPath(outputPath);
     return outputPath;
   });
