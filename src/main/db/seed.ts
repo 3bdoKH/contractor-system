@@ -11,10 +11,10 @@ const MERCHANDISE_ITEMS = [
   'زلط',
   'حديد',
   'بودرة',
-  'اعتاب x 100',
-  'اعتاب x 120',
-  'اعتاب x 150',
-  'اعتاب x 200',
+  'اعتاب 100 سم',
+  'اعتاب 120 سم',
+  'اعتاب 150 سم',
+  'اعتاب 200 سم',
   'مسمار',
   'شمبر',
   'سلك',
@@ -27,14 +27,11 @@ const MERCHANDISE_ITEMS = [
 ];
 
 export function seedMerchandise(db: Database.Database) {
-  const count = (db.prepare('SELECT COUNT(*) as count FROM merchandise').get() as { count: number }).count;
-  if (count === 0) {
-    const insert = db.prepare('INSERT INTO merchandise (name) VALUES (?)');
-    const insertMany = db.transaction((items: string[]) => {
-      for (const item of items) {
-        insert.run(item);
-      }
-    });
-    insertMany(MERCHANDISE_ITEMS);
-  }
+  const insert = db.prepare('INSERT OR IGNORE INTO merchandise (name) VALUES (?)');
+  const insertMany = db.transaction((items: string[]) => {
+    for (const item of items) {
+      insert.run(item);
+    }
+  });
+  insertMany(MERCHANDISE_ITEMS);
 }

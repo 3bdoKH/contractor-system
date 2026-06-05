@@ -319,31 +319,6 @@ export default function InventoryReport() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-bold">عدد المواد المفلترة</span>
-            <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-600"><FileText size={16} /></div>
-          </div>
-          <p className="text-2xl font-black text-slate-900 mt-3">{loading ? '...' : filteredSummary.total_items.toLocaleString('ar-EG')}</p>
-        </div>
-        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-bold">إجمالي كمية المخزون</span>
-            <div className="p-1.5 bg-indigo-500/10 rounded-lg text-indigo-600"><Calendar size={16} /></div>
-          </div>
-          <p className="text-2xl font-black text-slate-900 mt-3">{loading ? '...' : filteredSummary.total_stock_qty.toLocaleString('ar-EG', { maximumFractionDigits: 2 })}</p>
-        </div>
-        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-bold">إجمالي قيمة المخزون الحالي</span>
-            <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-600"><span className="text-sm font-bold">ج.م</span></div>
-          </div>
-          <p className="text-2xl font-black text-slate-900 mt-3">{loading ? '...' : `${formatCurrency(filteredSummary.total_valuation)} ج.م`}</p>
-        </div>
-      </div>
-
       {/* Main Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">

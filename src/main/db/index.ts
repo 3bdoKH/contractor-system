@@ -141,6 +141,13 @@ function initDb(db: Database.Database) {
     // Column already exists or table doesn't exist yet
   }
 
+  // Migrate: add unique index on merchandise.name for safe incremental seeding
+  try {
+    db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_merchandise_name ON merchandise(name)').run();
+  } catch (err) {
+    // Index already exists
+  }
+
   seedMerchandise(db);
   seedSettings(db);
   seedExpenseCategories(db);
