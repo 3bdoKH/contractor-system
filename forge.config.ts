@@ -10,7 +10,9 @@ import { PublisherGithub } from '@electron-forge/publisher-github'
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: true,
+    asar: {
+      unpack: '**/node_modules/sql.js/**'
+    },
     name: 'contractor-system',
     executableName: 'contractor-system',
     extraResource: ['assets/', 'public/sql-wasm.wasm'],
