@@ -40,7 +40,7 @@ export default function Sidebar() {
           <Settings size={18} />
           <span>الإعدادات</span>
         </NavLink>
-        <p className="text-xs text-slate-500 text-center py-2">نسخة ١.٠</p>
+        <p className="text-xs text-slate-500 text-center py-2">نسخة ١.١.١</p>
       </div>
     </aside>
   );
