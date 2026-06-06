@@ -11,6 +11,12 @@ import { registerSupplierHandlers } from './ipc/suppliers';
 import { registerSettingsHandlers } from './ipc/settings';
 import { registerExpenseHandlers } from './ipc/expenses';
 import { registerInventoryHandlers } from './ipc/inventory';
+import { updateElectronApp } from 'update-electron-app';
+
+updateElectronApp({
+  repo: '3bdoKH/contractor-system',
+  updateInterval: '1 hour',
+})
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
