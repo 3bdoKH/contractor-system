@@ -1,7 +1,7 @@
 import { ipcMain, app, shell, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
-import { getDb } from '../db';
+import { queryAll, queryOne } from '../db';
 
 function formatNum(n: number): string {
   return Number(n).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -154,35 +154,33 @@ const SHARED_CSS = (fontPath: string) => `
 `;
 
 export function registerPrintHandlers() {
-  const db = getDb();
-
   ipcMain.handle('print:customerReport', async (_event, customerId: number) => {
-    const settingRows = db.prepare('SELECT key, value FROM settings').all() as any[];
+    const settingRows = queryAll<{ key: string; value: string }>('SELECT key, value FROM settings');
     const cfg: Record<string, string> = {};
-    settingRows.forEach((s: any) => { cfg[s.key] = s.value; });
+    settingRows.forEach((s) => { cfg[s.key] = s.value; });
 
-    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId) as any;
+    const customer = queryOne('SELECT * FROM customers WHERE id = ?', [customerId]) as any;
     if (!customer) throw new Error('Customer not found');
 
-    const invoices = db.prepare(`
+    const invoices = queryAll(`
       SELECT i.*, COALESCE(SUM(p.amount), 0) as total_paid
       FROM invoices i
       LEFT JOIN payments p ON p.invoice_id = i.id
       WHERE i.customer_id = ?
       GROUP BY i.id
       ORDER BY i.date ASC
-    `).all(customerId) as any[];
+    `, [customerId]) as any[];
 
     const invoicesWithDetails = invoices.map((inv) => {
-      const items = db.prepare(`
+      const items = queryAll(`
         SELECT ii.*, COALESCE(m.name, ii.custom_name) as item_name
         FROM invoice_items ii
         LEFT JOIN merchandise m ON m.id = ii.merchandise_id
         WHERE ii.invoice_id = ?
-      `).all(inv.id) as any[];
-      const payments = db.prepare(`
+      `, [inv.id]) as any[];
+      const payments = queryAll(`
         SELECT * FROM payments WHERE invoice_id = ? ORDER BY date ASC
-      `).all(inv.id) as any[];
+      `, [inv.id]) as any[];
       return { ...inv, items, payments };
     });
 
@@ -315,32 +313,32 @@ export function registerPrintHandlers() {
   });
 
   ipcMain.handle('print:supplierReport', async (_event, supplierId: number) => {
-    const settingRows = db.prepare('SELECT key, value FROM settings').all() as any[];
+    const settingRows = queryAll<{ key: string; value: string }>('SELECT key, value FROM settings');
     const cfg: Record<string, string> = {};
-    settingRows.forEach((s: any) => { cfg[s.key] = s.value; });
+    settingRows.forEach((s) => { cfg[s.key] = s.value; });
 
-    const supplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(supplierId) as any;
+    const supplier = queryOne('SELECT * FROM suppliers WHERE id = ?', [supplierId]) as any;
     if (!supplier) throw new Error('Supplier not found');
 
-    const invoices = db.prepare(`
+    const invoices = queryAll(`
       SELECT si.*, COALESCE(SUM(sp.amount), 0) as total_paid
       FROM supply_invoices si
       LEFT JOIN supplier_payments sp ON sp.supply_invoice_id = si.id
       WHERE si.supplier_id = ?
       GROUP BY si.id
       ORDER BY si.date ASC
-    `).all(supplierId) as any[];
+    `, [supplierId]) as any[];
 
     const invoicesWithDetails = invoices.map((inv) => {
-      const items = db.prepare(`
+      const items = queryAll(`
         SELECT sii.*, COALESCE(m.name, sii.custom_name) as item_name
         FROM supply_invoice_items sii
         LEFT JOIN merchandise m ON m.id = sii.merchandise_id
         WHERE sii.supply_invoice_id = ?
-      `).all(inv.id) as any[];
-      const payments = db.prepare(`
+      `, [inv.id]) as any[];
+      const payments = queryAll(`
         SELECT * FROM supplier_payments WHERE supply_invoice_id = ? ORDER BY date ASC
-      `).all(inv.id) as any[];
+      `, [inv.id]) as any[];
       return { ...inv, items, payments };
     });
 

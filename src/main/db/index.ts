@@ -1,22 +1,115 @@
-import Database from 'better-sqlite3';
+import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
 import path from 'node:path';
+import fs from 'node:fs';
 import { app } from 'electron';
 import { seedMerchandise } from './seed';
 
-let db: Database.Database;
+let db: Database;
+let dbPath: string;
 
-export function getDb(): Database.Database {
+/**
+ * Persist the in-memory database to disk.
+ * Call this after every write operation.
+ */
+export function saveDb(): void {
+  if (db && dbPath) {
+    const data = db.export();
+    fs.writeFileSync(dbPath, Buffer.from(data));
+  }
+}
+
+/**
+ * Returns the initialized sql.js Database instance.
+ * Must be called after initializeDb() has been awaited.
+ */
+export function getDb(): Database {
   if (!db) {
-    const dbPath = path.join(app.getPath('userData'), 'contractor.db');
-    db = new Database(dbPath);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    initDb(db);
+    throw new Error('Database not initialized. Call initializeDb() first.');
   }
   return db;
 }
 
-function initDb(db: Database.Database) {
+/**
+ * Async initialization — must be awaited before the window is created.
+ */
+export async function initializeDb(): Promise<void> {
+  if (db) return; // already initialized
+
+  dbPath = path.join(app.getPath('userData'), 'contractor.db');
+
+  // Resolve WASM path — works in dev (from node_modules) and prod (extraResources)
+  let wasmPath: string;
+  if (app.isPackaged) {
+    wasmPath = path.join(process.resourcesPath, 'sql-wasm.wasm');
+  } else {
+    wasmPath = path.join(__dirname, '../../public/sql-wasm.wasm');
+  }
+
+  // Fallback: try node_modules dist
+  if (!fs.existsSync(wasmPath)) {
+    wasmPath = path.join(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm');
+  }
+
+  const SQL: SqlJsStatic = await initSqlJs({
+    locateFile: () => wasmPath,
+  });
+
+  if (fs.existsSync(dbPath)) {
+    const fileBuffer = fs.readFileSync(dbPath);
+    db = new SQL.Database(fileBuffer);
+  } else {
+    db = new SQL.Database();
+  }
+
+  // Enable foreign keys
+  db.run('PRAGMA foreign_keys = ON');
+
+  initDb();
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Run a SELECT query and return all rows as an array of plain objects.
+ */
+export function queryAll<T = Record<string, unknown>>(sql: string, params: (string | number | null | Uint8Array)[] = []): T[] {
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  const rows: T[] = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject() as T);
+  }
+  stmt.free();
+  return rows;
+}
+
+/**
+ * Run a SELECT query and return the first row, or undefined.
+ */
+export function queryOne<T = Record<string, unknown>>(sql: string, params: (string | number | null | Uint8Array)[] = []): T | undefined {
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  let row: T | undefined;
+  if (stmt.step()) {
+    row = stmt.getAsObject() as T;
+  }
+  stmt.free();
+  return row;
+}
+
+/**
+ * Run a write statement and return lastInsertRowid.
+ */
+export function runWrite(sql: string, params: (string | number | null | Uint8Array)[] = []): number {
+  db.run(sql, params);
+  const result = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+  saveDb();
+  return result?.id ?? 0;
+}
+
+// ─── Schema Init ────────────────────────────────────────────────────────────
+
+function initDb() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS merchandise (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,29 +224,32 @@ function initDb(db: Database.Database) {
 
   // Migrate existing databases to add the new 'unit' column
   try {
-    db.prepare('ALTER TABLE invoice_items ADD COLUMN unit TEXT').run();
-  } catch (err) {
-    // Column already exists or table doesn't exist yet
+    db.run('ALTER TABLE invoice_items ADD COLUMN unit TEXT');
+  } catch (_err) {
+    // Column already exists
   }
   try {
-    db.prepare('ALTER TABLE supply_invoice_items ADD COLUMN unit TEXT').run();
-  } catch (err) {
-    // Column already exists or table doesn't exist yet
+    db.run('ALTER TABLE supply_invoice_items ADD COLUMN unit TEXT');
+  } catch (_err) {
+    // Column already exists
   }
 
   // Migrate: add unique index on merchandise.name for safe incremental seeding
   try {
-    db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_merchandise_name ON merchandise(name)').run();
-  } catch (err) {
+    db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_merchandise_name ON merchandise(name)');
+  } catch (_err) {
     // Index already exists
   }
 
   seedMerchandise(db);
-  seedSettings(db);
-  seedExpenseCategories(db);
+  seedSettings();
+  seedExpenseCategories();
+
+  // Persist initial schema to disk
+  saveDb();
 }
 
-function seedSettings(db: Database.Database) {
+function seedSettings() {
   const defaults = [
     { key: 'contractor_name', value: 'نظام المقاول' },
     { key: 'contractor_phone', value: '' },
@@ -161,23 +257,17 @@ function seedSettings(db: Database.Database) {
     { key: 'pdf_header_title', value: 'كشف حساب' },
     { key: 'pdf_footer_note', value: '' },
   ];
-  const insert = db.prepare(
-    'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)'
-  );
   for (const { key, value } of defaults) {
-    insert.run(key, value);
+    db.run('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', [key, value]);
   }
 }
 
-function seedExpenseCategories(db: Database.Database) {
+function seedExpenseCategories() {
   const defaultCategories = [
     'وقود', 'عمالة', 'إيجار', 'صيانة', 'مواصلات',
     'كهرباء', 'مياه', 'اتصالات', 'مستلزمات مكتبية', 'أخرى',
   ];
-  const insert = db.prepare(
-    'INSERT OR IGNORE INTO expense_categories (name) VALUES (?)'
-  );
   for (const name of defaultCategories) {
-    insert.run(name);
+    db.run('INSERT OR IGNORE INTO expense_categories (name) VALUES (?)', [name]);
   }
 }

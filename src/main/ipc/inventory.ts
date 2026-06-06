@@ -1,7 +1,7 @@
 import { ipcMain, app, shell, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
-import { getDb } from '../db';
+import { getDb, queryAll, saveDb } from '../db';
 
 interface InventoryFilters {
   from?: string;
@@ -16,11 +16,11 @@ interface ManualAdjustment {
   updated_at: string;
 }
 
-function getInventoryReportData(db: any, filters?: InventoryFilters) {
+function getInventoryReportData(filters?: InventoryFilters) {
   const fromDate = filters?.from || '0000-00-00';
   const toDate = filters?.to || '9999-12-31';
 
-  const rows = db.prepare(`
+  const rows = queryAll(`
     SELECT
       m.id,
       m.name,
@@ -72,7 +72,7 @@ function getInventoryReportData(db: any, filters?: InventoryFilters) {
     FROM merchandise m
     LEFT JOIN inventory_adjustments ia ON ia.merchandise_id = m.id
     ORDER BY m.name ASC
-  `).all(fromDate, fromDate, fromDate, toDate, fromDate, toDate) as any[];
+  `, [fromDate, fromDate, fromDate, toDate, fromDate, toDate]) as any[];
 
   const items = rows.map((row) => {
     const auto_closing = row.opening_stock + row.incoming - row.outgoing;
@@ -113,16 +113,14 @@ function getInventoryReportData(db: any, filters?: InventoryFilters) {
 }
 
 export function registerInventoryHandlers() {
-  const db = getDb();
-
   // Get the full inventory report (with manual overrides applied)
   ipcMain.handle('inventory:getReport', (_event, filters?: InventoryFilters) => {
-    return getInventoryReportData(db, filters);
+    return getInventoryReportData(filters);
   });
 
   // Get all manual adjustments
   ipcMain.handle('inventory:getAdjustments', () => {
-    return db.prepare('SELECT * FROM inventory_adjustments').all() as ManualAdjustment[];
+    return queryAll<ManualAdjustment>('SELECT * FROM inventory_adjustments');
   });
 
   // Set (upsert) a manual adjustment for a merchandise item
@@ -132,7 +130,7 @@ export function registerInventoryHandlers() {
     manual_price: number | null;
     notes?: string;
   }) => {
-    db.prepare(`
+    getDb().run(`
       INSERT INTO inventory_adjustments (merchandise_id, manual_quantity, manual_price, notes, updated_at)
       VALUES (?, ?, ?, ?, datetime('now'))
       ON CONFLICT(merchandise_id) DO UPDATE SET
@@ -140,39 +138,40 @@ export function registerInventoryHandlers() {
         manual_price = excluded.manual_price,
         notes = excluded.notes,
         updated_at = datetime('now')
-    `).run(data.merchandise_id, data.manual_quantity, data.manual_price, data.notes ?? null);
+    `, [data.merchandise_id, data.manual_quantity, data.manual_price, data.notes ?? null]);
+    saveDb();
     return { success: true };
   });
 
   // Remove manual adjustment for a specific item (revert to auto)
   ipcMain.handle('inventory:removeAdjustment', (_event, merchandise_id: number) => {
-    db.prepare('DELETE FROM inventory_adjustments WHERE merchandise_id = ?').run(merchandise_id);
+    getDb().run('DELETE FROM inventory_adjustments WHERE merchandise_id = ?', [merchandise_id]);
+    saveDb();
     return { success: true };
   });
 
   // Reset ALL manual adjustments (clears the whole table)
   ipcMain.handle('inventory:resetAllAdjustments', () => {
-    db.prepare('DELETE FROM inventory_adjustments').run();
+    getDb().run('DELETE FROM inventory_adjustments');
+    saveDb();
     return { success: true };
   });
 
   // Set every merchandise item's closing stock to zero (by inserting 0 for all)
   ipcMain.handle('inventory:resetToZero', () => {
-    const merchandise = db.prepare('SELECT id FROM merchandise').all() as { id: number }[];
-    const upsert = db.prepare(`
-      INSERT INTO inventory_adjustments (merchandise_id, manual_quantity, manual_price, notes, updated_at)
-      VALUES (?, 0, NULL, 'إعادة تعيين يدوي', datetime('now'))
-      ON CONFLICT(merchandise_id) DO UPDATE SET
-        manual_quantity = 0,
-        notes = 'إعادة تعيين يدوي',
-        updated_at = datetime('now')
-    `);
-    const resetMany = db.transaction((items: { id: number }[]) => {
-      for (const item of items) {
-        upsert.run(item.id);
-      }
-    });
-    resetMany(merchandise);
+    const merchandise = queryAll<{ id: number }>('SELECT id FROM merchandise');
+    const db = getDb();
+    for (const item of merchandise) {
+      db.run(`
+        INSERT INTO inventory_adjustments (merchandise_id, manual_quantity, manual_price, notes, updated_at)
+        VALUES (?, 0, NULL, 'إعادة تعيين يدوي', datetime('now'))
+        ON CONFLICT(merchandise_id) DO UPDATE SET
+          manual_quantity = 0,
+          notes = 'إعادة تعيين يدوي',
+          updated_at = datetime('now')
+      `, [item.id]);
+    }
+    saveDb();
     return { success: true, count: merchandise.length };
   });
 
@@ -180,12 +179,12 @@ export function registerInventoryHandlers() {
     const reportTitle = titleLabel || 'تقرير حركة وجرد المخزن';
 
     // Load settings for PDF title header
-    const settings = db.prepare('SELECT key, value FROM settings').all() as any[];
+    const settings = queryAll<{ key: string; value: string }>('SELECT key, value FROM settings');
     const cfg: Record<string, string> = {};
-    settings.forEach((s: any) => { cfg[s.key] = s.value; });
+    settings.forEach((s) => { cfg[s.key] = s.value; });
 
     // Fetch same inventory report directly
-    const res = getInventoryReportData(db, filters);
+    const res = getInventoryReportData(filters);
     const items = res.items as any[];
     const summary = res.summary as any;
 

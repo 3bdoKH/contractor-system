@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { getDb } from '../db';
+import { getDb, queryAll, queryOne, saveDb } from '../db';
 
 interface InvoiceItem {
   merchandise_id?: number | null;
@@ -23,14 +23,11 @@ interface UpdateInvoiceData {
 }
 
 export function registerInvoiceHandlers() {
-  const db = getDb();
-
   // Generate next invoice number
   function generateInvoiceNumber(): string {
-    const last = db.prepare(`
-      SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1
-    `).get() as { invoice_number: string } | undefined;
-
+    const last = queryOne<{ invoice_number: string }>(
+      'SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1'
+    );
     if (!last) return 'INV-1001';
     const num = parseInt(last.invoice_number.replace('INV-', ''), 10);
     return `INV-${num + 1}`;
@@ -40,38 +37,29 @@ export function registerInvoiceHandlers() {
   ipcMain.handle('invoices:create', (_event, data: CreateInvoiceData) => {
     const total = data.items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
     const invoiceNumber = generateInvoiceNumber();
+    const db = getDb();
 
-    const createInvoice = db.transaction(() => {
-      const inv = db.prepare(
-        'INSERT INTO invoices (invoice_number, customer_id, date, total, notes) VALUES (?, ?, ?, ?, ?)'
-      ).run(invoiceNumber, data.customer_id, data.date, total, data.notes ?? null);
+    db.run(
+      'INSERT INTO invoices (invoice_number, customer_id, date, total, notes) VALUES (?, ?, ?, ?, ?)',
+      [invoiceNumber, data.customer_id, data.date, total, data.notes ?? null]
+    );
+    const invRow = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+    const invoiceId = invRow!.id;
 
-      const invoiceId = inv.lastInsertRowid;
-
-      const insertItem = db.prepare(
-        'INSERT INTO invoice_items (invoice_id, merchandise_id, custom_name, quantity, unit_price, unit) VALUES (?, ?, ?, ?, ?, ?)'
+    for (const item of data.items) {
+      db.run(
+        'INSERT INTO invoice_items (invoice_id, merchandise_id, custom_name, quantity, unit_price, unit) VALUES (?, ?, ?, ?, ?, ?)',
+        [invoiceId, item.merchandise_id ?? null, item.custom_name ?? null, item.quantity, item.unit_price, item.unit ?? null]
       );
+    }
 
-      for (const item of data.items) {
-        insertItem.run(
-          invoiceId,
-          item.merchandise_id ?? null,
-          item.custom_name ?? null,
-          item.quantity,
-          item.unit_price,
-          item.unit ?? null
-        );
-      }
-
-      return { id: invoiceId, invoice_number: invoiceNumber };
-    });
-
-    return createInvoice();
+    saveDb();
+    return { id: invoiceId, invoice_number: invoiceNumber };
   });
 
   // Get invoices by customer
   ipcMain.handle('invoices:getByCustomer', (_event, customerId: number) => {
-    const invoices = db.prepare(`
+    const invoices = queryAll(`
       SELECT
         i.*,
         COALESCE(SUM(p.amount), 0) as total_paid
@@ -80,19 +68,20 @@ export function registerInvoiceHandlers() {
       WHERE i.customer_id = ?
       GROUP BY i.id
       ORDER BY i.date DESC
-    `).all(customerId);
+    `, [customerId]);
 
     return (invoices as any[]).map((inv) => {
-      const items = db.prepare(`
+      const items = queryAll(`
         SELECT ii.*, m.name as merchandise_name
         FROM invoice_items ii
         LEFT JOIN merchandise m ON m.id = ii.merchandise_id
         WHERE ii.invoice_id = ?
-      `).all(inv.id);
+      `, [inv.id]);
 
-      const payments = db.prepare(`
-        SELECT * FROM payments WHERE invoice_id = ? ORDER BY date DESC
-      `).all(inv.id);
+      const payments = queryAll(
+        'SELECT * FROM payments WHERE invoice_id = ? ORDER BY date DESC',
+        [inv.id]
+      );
 
       return { ...inv, items, payments };
     });
@@ -100,15 +89,15 @@ export function registerInvoiceHandlers() {
 
   // Get single invoice by id (with items)
   ipcMain.handle('invoices:getById', (_event, id: number) => {
-    const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(id) as any;
+    const inv = queryOne('SELECT * FROM invoices WHERE id = ?', [id]) as any;
     if (!inv) return null;
 
-    const items = db.prepare(`
+    const items = queryAll(`
       SELECT ii.*, m.name as merchandise_name
       FROM invoice_items ii
       LEFT JOIN merchandise m ON m.id = ii.merchandise_id
       WHERE ii.invoice_id = ?
-    `).all(id);
+    `, [id]);
 
     return { ...inv, items };
   });
@@ -116,41 +105,32 @@ export function registerInvoiceHandlers() {
   // Update invoice (replace items, recalculate total)
   ipcMain.handle('invoices:update', (_event, id: number, data: UpdateInvoiceData) => {
     const total = data.items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    const db = getDb();
 
-    const doUpdate = db.transaction(() => {
-      db.prepare(
-        'UPDATE invoices SET date = ?, notes = ?, total = ? WHERE id = ?'
-      ).run(data.date, data.notes ?? null, total, id);
+    db.run(
+      'UPDATE invoices SET date = ?, notes = ?, total = ? WHERE id = ?',
+      [data.date, data.notes ?? null, total, id]
+    );
+    db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
 
-      db.prepare('DELETE FROM invoice_items WHERE invoice_id = ?').run(id);
-
-      const insertItem = db.prepare(
-        'INSERT INTO invoice_items (invoice_id, merchandise_id, custom_name, quantity, unit_price, unit) VALUES (?, ?, ?, ?, ?, ?)'
+    for (const item of data.items) {
+      db.run(
+        'INSERT INTO invoice_items (invoice_id, merchandise_id, custom_name, quantity, unit_price, unit) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, item.merchandise_id ?? null, item.custom_name ?? null, item.quantity, item.unit_price, item.unit ?? null]
       );
-      for (const item of data.items) {
-        insertItem.run(
-          id,
-          item.merchandise_id ?? null,
-          item.custom_name ?? null,
-          item.quantity,
-          item.unit_price,
-          item.unit ?? null
-        );
-      }
-    });
+    }
 
-    doUpdate();
+    saveDb();
     return { success: true };
   });
 
   // Delete invoice (cascade items and payments)
   ipcMain.handle('invoices:delete', (_event, id: number) => {
-    const deleteAll = db.transaction(() => {
-      db.prepare('DELETE FROM payments WHERE invoice_id = ?').run(id);
-      db.prepare('DELETE FROM invoice_items WHERE invoice_id = ?').run(id);
-      db.prepare('DELETE FROM invoices WHERE id = ?').run(id);
-    });
-    deleteAll();
+    const db = getDb();
+    db.run('DELETE FROM payments WHERE invoice_id = ?', [id]);
+    db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
+    db.run('DELETE FROM invoices WHERE id = ?', [id]);
+    saveDb();
     return { success: true };
   });
 }

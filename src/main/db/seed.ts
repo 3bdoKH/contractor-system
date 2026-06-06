@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import type { Database } from 'sql.js';
 
 const MERCHANDISE_ITEMS = [
   'اسمنت ابيض',
@@ -26,12 +26,8 @@ const MERCHANDISE_ITEMS = [
   'مصنعيه',
 ];
 
-export function seedMerchandise(db: Database.Database) {
-  const insert = db.prepare('INSERT OR IGNORE INTO merchandise (name) VALUES (?)');
-  const insertMany = db.transaction((items: string[]) => {
-    for (const item of items) {
-      insert.run(item);
-    }
-  });
-  insertMany(MERCHANDISE_ITEMS);
+export function seedMerchandise(db: Database) {
+  for (const item of MERCHANDISE_ITEMS) {
+    db.run('INSERT OR IGNORE INTO merchandise (name) VALUES (?)', [item]);
+  }
 }

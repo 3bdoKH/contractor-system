@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { getDb } from './db';
+import { initializeDb, getDb, queryOne } from './db';
 import { registerCustomerHandlers } from './ipc/customers';
 import { registerInvoiceHandlers } from './ipc/invoices';
 import { registerPaymentHandlers } from './ipc/payments';
@@ -24,11 +24,11 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox');
 }
 
+async function createWindow() {
+  // Initialize DB before creating the window (sql.js is async)
+  await initializeDb();
 
-const createWindow = () => {
-  // Initialize DB on startup
-  getDb();
-  console.log('preload path:', path.join(__dirname, 'preload.js'))
+  console.log('preload path:', path.join(__dirname, 'preload.js'));
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -38,15 +38,14 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
     },
     title: 'نظام المقاول',
     autoHideMenuBar: true,
   });
 
   // Set title from DB settings
-  const db = getDb();
-  const nameSetting = db.prepare("SELECT value FROM settings WHERE key = 'contractor_name'").get() as any;
+  const nameSetting = queryOne<{ value: string }>("SELECT value FROM settings WHERE key = 'contractor_name'");
   mainWindow.setTitle(nameSetting?.value || 'نظام المقاول');
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -67,10 +66,13 @@ const createWindow = () => {
   registerSettingsHandlers();
   registerExpenseHandlers();
   registerInventoryHandlers();
-};
+}
 
 app.on('ready', () => {
-  createWindow();
+  createWindow().catch((err) => {
+    console.error('Failed to create window:', err);
+    app.quit();
+  });
   // Start auto-update checks only after the app is fully ready
   updateElectronApp({
     repo: '3bdoKH/contractor-system',
@@ -86,6 +88,6 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    createWindow().catch(console.error);
   }
 });

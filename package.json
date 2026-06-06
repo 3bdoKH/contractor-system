@@ -1,7 +1,7 @@
 {
   "name": "contractor-system",
   "productName": "contractor-system",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "contractor-system",
   "main": ".vite/build/index.js",
   "private": true,
@@ -29,11 +29,11 @@
     "@electron-forge/plugin-vite": "^7.11.2",
     "@electron-forge/publisher-github": "^7.11.2",
     "@electron/fuses": "^1.8.0",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/pdfkit": "^0.17.6",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "@types/sql.js": "^1.4.11",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-react": "^4.3.1",
@@ -46,13 +46,13 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
     "arabic-reshaper": "^1.1.0",
-    "better-sqlite3": "^12.10.0",
     "electron-squirrel-startup": "^1.0.1",
     "lucide-react": "^1.17.0",
     "pdfkit": "^0.18.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",
+    "sql.js": "^1.14.1",
     "tailwindcss": "^4.3.0",
     "update-electron-app": "^3.2.0"
   }
