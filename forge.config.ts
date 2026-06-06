@@ -8,6 +8,8 @@ import { FusesPlugin } from '@electron-forge/plugin-fuses'
 import { FuseV1Options, FuseVersion } from '@electron/fuses'
 import { PublisherGithub } from '@electron-forge/publisher-github'
 
+import { execSync } from 'node:child_process'
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
@@ -16,6 +18,26 @@ const config: ForgeConfig = {
     name: 'contractor-system',
     executableName: 'contractor-system',
     extraResource: ['assets/', 'public/sql-wasm.wasm'],
+  },
+  hooks: {
+    packageAfterCopy: async (forgeConfig, buildPath) => {
+      const fs = require('node:fs');
+      const path = require('node:path');
+      const { execSync } = require('node:child_process');
+
+      // 1. Copy package.json to staging folder
+      fs.copyFileSync(
+        path.resolve(__dirname, 'package.json'),
+        path.resolve(buildPath, 'package.json')
+      );
+
+      // 2. Install production dependencies (like sql.js and pdfkit) in staging folder
+      console.log('Installing production dependencies in packaged app at:', buildPath);
+      execSync('npm install --production --no-audit --no-fund', {
+        cwd: buildPath,
+        stdio: 'inherit',
+      });
+    }
   },
   rebuildConfig: {},
   makers: [
