@@ -82,7 +82,7 @@ export class CustomerRepository {
       return { ...inv, items, payments };
     });
 
-    return { ...customer, invoices: invoicesWithItems };
+    return { ...(customer as any), invoices: invoicesWithItems };
   }
 
   create(data: { name: string; phone?: string | null; address?: string | null; notes?: string | null }): { id: number | bigint } {
