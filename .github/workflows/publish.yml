@@ -25,7 +25,7 @@ jobs:
         run: npm ci
 
       - name: Rebuild native modules
-        run: npx electron-rebuild -f -m better-sqlite3
+        run: ./node_modules/.bin/electron-rebuild -f -w better-sqlite3
 
       - name: Publish
         env:
