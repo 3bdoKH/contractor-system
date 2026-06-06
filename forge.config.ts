@@ -10,7 +10,9 @@ import { PublisherGithub } from '@electron-forge/publisher-github'
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: true,
+    asar: {
+      unpack: '**/node_modules/better-sqlite3/**'
+    },
     name: 'contractor-system',
     executableName: 'contractor-system',
   },
