@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, Truck, Settings, Receipt, Boxes } from 'lucide-react';
-
+import packageJSON from '../../../../package.json';
 const navItems = [
   { to: '/', label: 'لوحة التحكم', icon: LayoutDashboard, end: true },
   { to: '/customers', label: 'العملاء', icon: Users, end: false },
@@ -40,7 +40,7 @@ export default function Sidebar() {
           <Settings size={18} />
           <span>الإعدادات</span>
         </NavLink>
-        <p className="text-xs text-slate-500 text-center py-2">نسخة ١.١.١</p>
+        <p className="text-xs text-slate-500 text-center py-2">{`نسخة ${packageJSON.version}`}</p>
       </div>
     </aside>
   );
