@@ -1,7 +1,7 @@
 {
   "name": "contractor-system",
   "productName": "contractor-system",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "My Electron application description",
   "main": ".vite/build/index.js",
   "private": true,
