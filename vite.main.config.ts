@@ -1,10 +1,16 @@
 import { defineConfig } from 'vite';
 
-// https://vitejs.dev/config
 export default defineConfig({
   build: {
-    rollupOptions: {
-      external: ['better-sqlite3', 'pdfkit', 'electron'],
+    lib: {
+      entry: 'src/main/index.ts',
+      fileName: () => 'main.js',
+      formats: ['cjs'],
     },
+    rollupOptions: {
+      external: ['better-sqlite3', 'pdfkit', 'electron', 'node:path', 'node:fs', 'node:os'],
+    },
+    outDir: '.vite/build',
+    emptyOutDir: false,
   },
 });
