@@ -266,7 +266,7 @@ export function registerInventoryHandlers() {
     const tmpHtml = path.join(app.getPath('temp'), `inventory-report-${Date.now()}.html`);
     fs.writeFileSync(tmpHtml, html, 'utf-8');
 
-    const win = new BrowserWindow({ show: false });
+    const win = new BrowserWindow({ show: false, webPreferences: { sandbox: false } });
     await win.loadFile(tmpHtml);
 
     const docsDir = app.getPath('documents');

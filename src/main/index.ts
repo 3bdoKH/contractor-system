@@ -13,12 +13,8 @@ import { registerExpenseHandlers } from './ipc/expenses';
 import { registerInventoryHandlers } from './ipc/inventory';
 import { updateElectronApp } from 'update-electron-app';
 
-updateElectronApp({
-  repo: '3bdoKH/contractor-system',
-  updateInterval: '1 hour',
-})
-
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
+// This MUST run before anything else — Squirrel fires the exe multiple times during install.
 if (started) {
   app.quit();
 }
@@ -73,7 +69,14 @@ const createWindow = () => {
   registerInventoryHandlers();
 };
 
-app.on('ready', createWindow);
+app.on('ready', () => {
+  createWindow();
+  // Start auto-update checks only after the app is fully ready
+  updateElectronApp({
+    repo: '3bdoKH/contractor-system',
+    updateInterval: '1 hour',
+  });
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

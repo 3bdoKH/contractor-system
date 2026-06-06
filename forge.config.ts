@@ -15,6 +15,7 @@ const config: ForgeConfig = {
     },
     name: 'contractor-system',
     executableName: 'contractor-system',
+    extraResource: ['assets/'],
   },
   rebuildConfig: {},
   makers: [

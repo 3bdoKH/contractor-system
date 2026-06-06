@@ -258,7 +258,7 @@ export function registerPrintHandlers() {
       `;
     }).join('');
 
-    const fontPath = path.join(app.getAppPath(), 'assets', 'font', 'Cairo.ttf').replace(/\\/g, '/');
+    const fontPath = path.join(process.resourcesPath, 'assets', 'font', 'Cairo.ttf').replace(/\\/g, '/');
     const html = `
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
@@ -302,7 +302,7 @@ export function registerPrintHandlers() {
 
     const tmpHtml = path.join(app.getPath('temp'), `report-${customerId}.html`);
     fs.writeFileSync(tmpHtml, html, 'utf-8');
-    const win = new BrowserWindow({ show: false });
+    const win = new BrowserWindow({ show: false, webPreferences: { sandbox: false } });
     await win.loadFile(tmpHtml);
     const docsDir = app.getPath('documents');
     const outputPath = path.join(docsDir, `customer-${customerId}-${Date.now()}.pdf`);
@@ -416,7 +416,7 @@ export function registerPrintHandlers() {
       `;
     }).join('');
 
-    const fontPath = path.join(app.getAppPath(), 'assets', 'font', 'Cairo.ttf').replace(/\\/g, '/');
+    const fontPath = path.join(process.resourcesPath, 'assets', 'font', 'Cairo.ttf').replace(/\\/g, '/');
     const html = `
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
@@ -460,7 +460,7 @@ export function registerPrintHandlers() {
 
     const tmpHtml = path.join(app.getPath('temp'), `supplier-report-${supplierId}.html`);
     fs.writeFileSync(tmpHtml, html, 'utf-8');
-    const win = new BrowserWindow({ show: false });
+    const win = new BrowserWindow({ show: false, webPreferences: { sandbox: false } });
     await win.loadFile(tmpHtml);
     const docsDir = app.getPath('documents');
     const outputPath = path.join(docsDir, `supplier-${supplierId}-${Date.now()}.pdf`);
