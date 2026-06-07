@@ -31,7 +31,7 @@ export default function NewSupplyInvoice() {
   const supplierId = Number(id);
 
   const [supplier, setSupplier] = useState<{ name: string } | null>(null);
-  const [merchandise, setMerchandise] = useState<Merchandise[]>([]);
+  const [merchandise, setMerchandise] = useState<MerchandiseWithUnits[]>([]);
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
   const [rows, setRows] = useState<ItemRow[]>([newRow()]);
@@ -41,7 +41,7 @@ export default function NewSupplyInvoice() {
   useEffect(() => {
     Promise.all([
       window.api.suppliers.getById(supplierId),
-      window.api.merchandise.getAll(),
+      window.api.merchandise.getAllWithUnits(),
     ]).then(([sup, merch]) => {
       if (!sup) { navigate('/suppliers'); return; }
       setSupplier({ name: sup.name });
@@ -50,7 +50,16 @@ export default function NewSupplyInvoice() {
   }, [supplierId]);
 
   function updateRow(id: string, patch: Partial<ItemRow>) {
-    setRows(rs => rs.map(r => r.id === id ? { ...r, ...patch } : r));
+    setRows(rs => rs.map(r => {
+      if (r.id !== id) return r;
+      const updated = { ...r, ...patch };
+      if ('merchandise_id' in patch && patch.merchandise_id) {
+        const item = merchandise.find(m => m.id === patch.merchandise_id);
+        const defUnit = item?.units.find(u => u.is_default === 1) ?? item?.units[0];
+        if (defUnit) updated.unit = defUnit.unit;
+      }
+      return updated;
+    }));
   }
 
   function removeRow(id: string) {
@@ -189,19 +198,32 @@ export default function NewSupplyInvoice() {
                         <input type="number" min="0" step="0.01" value={row.quantity} onChange={e => updateRow(row.id, { quantity: e.target.value })} placeholder="0" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-center text-slate-900" />
                       </td>
                       <td className="px-3 py-2">
-                        <select
-                          value={row.unit}
-                          onChange={e => updateRow(row.id, { unit: e.target.value })}
-                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-center text-slate-900 bg-white"
-                        >
-                          <option value="">--</option>
-                          <option value="طن">طن</option>
-                          <option value="شكاره">شكاره</option>
-                          <option value="عدد">عدد</option>
-                          <option value="متر">متر</option>
-                          <option value="سيخ">سيخ</option>
-                          <option value="كيلو">كيلو</option>
-                        </select>
+                        {(() => {
+                          const item = !row.useCustom && row.merchandise_id
+                            ? merchandise.find(m => m.id === row.merchandise_id)
+                            : undefined;
+                          const unitOptions = item?.units ?? [];
+                          return unitOptions.length > 0 ? (
+                            <select
+                              value={row.unit}
+                              onChange={e => updateRow(row.id, { unit: e.target.value })}
+                              className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-center text-slate-900 bg-white"
+                            >
+                              <option value="">--</option>
+                              {unitOptions.map(u => (
+                                <option key={u.id} value={u.unit}>{u.unit}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              value={row.unit}
+                              onChange={e => updateRow(row.id, { unit: e.target.value })}
+                              placeholder="وحدة"
+                              className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-center text-slate-900"
+                            />
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-2">
                         <input type="number" min="0" step="0.01" value={row.unit_price} onChange={e => updateRow(row.id, { unit_price: e.target.value })} placeholder="0.00" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-center text-slate-900" />

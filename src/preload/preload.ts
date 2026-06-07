@@ -142,6 +142,19 @@ const api = {
   },
   merchandise: {
     getAll: (): Promise<Merchandise[]> => ipcRenderer.invoke('merchandise:getAll'),
+    getAllWithUnits: () => ipcRenderer.invoke('merchandise:getAllWithUnits'),
+    getUnits: (merchandiseId: number) => ipcRenderer.invoke('merchandise:getUnits', merchandiseId),
+    create: (data: { name: string; units?: { unit: string; is_default?: boolean }[] }) =>
+      ipcRenderer.invoke('merchandise:create', data),
+    update: (id: number, data: { name: string }) => ipcRenderer.invoke('merchandise:update', id, data),
+    delete: (id: number) => ipcRenderer.invoke('merchandise:delete', id),
+    addUnit: (merchandiseId: number, unit: string, isDefault: boolean) =>
+      ipcRenderer.invoke('merchandise:addUnit', merchandiseId, unit, isDefault),
+    setDefaultUnit: (merchandiseId: number, unitId: number) =>
+      ipcRenderer.invoke('merchandise:setDefaultUnit', merchandiseId, unitId),
+    deleteUnit: (unitId: number) => ipcRenderer.invoke('merchandise:deleteUnit', unitId),
+    setUnits: (merchandiseId: number, units: { unit: string; is_default: boolean }[]) =>
+      ipcRenderer.invoke('merchandise:setUnits', merchandiseId, units),
   },
   print: {
     customerReport: (customerId: number): Promise<string> =>

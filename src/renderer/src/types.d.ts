@@ -35,6 +35,15 @@ declare global {
       };
       merchandise: {
         getAll: () => Promise<Merchandise[]>;
+        getAllWithUnits: () => Promise<MerchandiseWithUnits[]>;
+        getUnits: (merchandiseId: number) => Promise<MerchandiseUnit[]>;
+        create: (data: { name: string; units?: { unit: string; is_default?: boolean }[] }) => Promise<{ id: number }>;
+        update: (id: number, data: { name: string }) => Promise<{ success: boolean }>;
+        delete: (id: number) => Promise<{ success: boolean }>;
+        addUnit: (merchandiseId: number, unit: string, isDefault: boolean) => Promise<{ id: number }>;
+        setDefaultUnit: (merchandiseId: number, unitId: number) => Promise<{ success: boolean }>;
+        deleteUnit: (unitId: number) => Promise<{ success: boolean }>;
+        setUnits: (merchandiseId: number, units: { unit: string; is_default: boolean }[]) => Promise<{ success: boolean }>;
       };
       print: {
         customerReport: (customerId: number) => Promise<string>;
@@ -131,6 +140,17 @@ declare global {
   interface Merchandise {
     id: number;
     name: string;
+  }
+
+  interface MerchandiseUnit {
+    id: number;
+    merchandise_id: number;
+    unit: string;
+    is_default: number; // 1 = default, 0 = not
+  }
+
+  interface MerchandiseWithUnits extends Merchandise {
+    units: MerchandiseUnit[];
   }
 
   // Supplier interfaces

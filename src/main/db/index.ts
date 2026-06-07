@@ -205,6 +205,14 @@ function initDb() {
       notes TEXT,
       updated_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS merchandise_units (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchandise_id INTEGER NOT NULL REFERENCES merchandise(id) ON DELETE CASCADE,
+      unit TEXT NOT NULL,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(merchandise_id, unit)
+    );
   `);
 
   // Migrate existing databases to add the new 'unit' column
@@ -224,6 +232,19 @@ function initDb() {
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_merchandise_name ON merchandise(name)');
   } catch (_err) {
     // Index already exists
+  }
+
+  // Migrate: create merchandise_units table if it doesn't exist on older DBs
+  try {
+    db.run(`CREATE TABLE IF NOT EXISTS merchandise_units (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchandise_id INTEGER NOT NULL REFERENCES merchandise(id) ON DELETE CASCADE,
+      unit TEXT NOT NULL,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(merchandise_id, unit)
+    )`);
+  } catch (_err) {
+    // Already exists
   }
 
   seedMerchandise(db);
