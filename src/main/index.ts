@@ -71,11 +71,33 @@ app.on('ready', () => {
     console.error('Failed to create window:', err);
     app.quit();
   });
-  // Start auto-update checks only after the app is fully ready
-  updateElectronApp({
-    repo: '3bdoKH/contractor-system',
-    updateInterval: '1 hour',
-  });
+
+  // Only run Squirrel auto-updater on Windows (it's not supported on Linux/macOS with Squirrel)
+  if (process.platform === 'win32') {
+    const { autoUpdater } = require('electron');
+
+    updateElectronApp({
+      repo: '3bdoKH/contractor-system',
+      updateInterval: '1 hour',
+      logger: require('electron-log'),
+    });
+
+    // When the update has been downloaded, prompt the user to restart
+    autoUpdater.on('update-downloaded', (_event: any, releaseNotes: string, releaseName: string) => {
+      const { dialog } = require('electron');
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'تحديث جاهز للتثبيت',
+        message: `الإصدار الجديد ${releaseName} جاهز.`,
+        detail: 'سيتم إعادة تشغيل التطبيق لتثبيت التحديث.',
+        buttons: ['إعادة التشغيل الآن', 'لاحقاً'],
+        defaultId: 0,
+        cancelId: 1,
+      }).then(({ response }: { response: number }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+      });
+    });
+  }
 });
 
 app.on('window-all-closed', () => {
