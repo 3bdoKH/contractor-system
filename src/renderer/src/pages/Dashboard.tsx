@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, TrendingUp, Wallet, AlertCircle, ArrowLeft, ShoppingCart, Truck, Receipt } from 'lucide-react';
+import { Users, TrendingUp, Wallet, AlertCircle, ArrowLeft, ShoppingCart, Truck } from 'lucide-react';
 import { formatCurrency } from '../utils';
 
 interface DashboardStats {
@@ -10,7 +10,6 @@ interface DashboardStats {
   totalRemaining: number;
   totalPurchases: number;
   totalOwedToSuppliers: number;
-  totalExpenses: number;
 }
 
 export default function Dashboard() {
@@ -21,7 +20,6 @@ export default function Dashboard() {
     totalRemaining: 0,
     totalPurchases: 0,
     totalOwedToSuppliers: 0,
-    totalExpenses: 0,
   });
   const [debtors, setDebtors] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,10 +31,9 @@ export default function Dashboard() {
   async function loadData() {
     setLoading(true);
     try {
-      const [customers, suppliers, expensesRes] = await Promise.all([
+      const [customers, suppliers] = await Promise.all([
         window.api.customers.getAll(),
         window.api.suppliers.getAll(),
-        window.api.expenses.getTotal(),
       ]);
       const totalInvoiced = customers.reduce((s, c) => s + c.total_invoiced, 0);
       const totalPaid = customers.reduce((s, c) => s + c.total_paid, 0);
@@ -49,7 +46,6 @@ export default function Dashboard() {
         totalRemaining: totalInvoiced - totalPaid,
         totalPurchases,
         totalOwedToSuppliers: totalPurchases - totalSupplierPaid,
-        totalExpenses: expensesRes?.total || 0,
       });
 
       const withBalance = customers
@@ -112,14 +108,6 @@ export default function Dashboard() {
       bg: stats.totalOwedToSuppliers > 0 ? 'bg-red-50' : 'bg-emerald-50',
       text: stats.totalOwedToSuppliers > 0 ? 'text-red-700' : 'text-emerald-700',
     },
-    {
-      label: 'إجمالي المصروفات',
-      value: `${formatCurrency(stats.totalExpenses)} ج.م`,
-      icon: Receipt,
-      color: 'bg-amber-500',
-      bg: 'bg-amber-50',
-      text: 'text-amber-700',
-    },
   ];
 
   return (
@@ -132,7 +120,7 @@ export default function Dashboard() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
         {loading
-          ? [...Array(7)].map((_, i) => (
+          ? [...Array(6)].map((_, i) => (
             <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse h-32"></div>
           ))
           : summaryCards.map((card) => {

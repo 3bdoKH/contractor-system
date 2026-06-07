@@ -197,21 +197,6 @@ function initDb() {
       value TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS expense_categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE
-    );
-
-    CREATE TABLE IF NOT EXISTS expenses (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      category_id INTEGER REFERENCES expense_categories(id),
-      custom_category TEXT,
-      amount REAL NOT NULL,
-      date TEXT NOT NULL,
-      notes TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-
     CREATE TABLE IF NOT EXISTS inventory_adjustments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       merchandise_id INTEGER NOT NULL UNIQUE REFERENCES merchandise(id) ON DELETE CASCADE,
@@ -243,8 +228,6 @@ function initDb() {
 
   seedMerchandise(db);
   seedSettings();
-  seedExpenseCategories();
-
   // Persist initial schema to disk
   saveDb();
 }
@@ -262,12 +245,3 @@ function seedSettings() {
   }
 }
 
-function seedExpenseCategories() {
-  const defaultCategories = [
-    'وقود', 'عمالة', 'إيجار', 'صيانة', 'مواصلات',
-    'كهرباء', 'مياه', 'اتصالات', 'مستلزمات مكتبية', 'أخرى',
-  ];
-  for (const name of defaultCategories) {
-    db.run('INSERT OR IGNORE INTO expense_categories (name) VALUES (?)', [name]);
-  }
-}

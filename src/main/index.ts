@@ -9,7 +9,6 @@ import { registerMerchandiseHandlers } from './ipc/merchandise';
 import { registerPrintHandlers } from './ipc/print';
 import { registerSupplierHandlers } from './ipc/suppliers';
 import { registerSettingsHandlers } from './ipc/settings';
-import { registerExpenseHandlers } from './ipc/expenses';
 import { registerInventoryHandlers } from './ipc/inventory';
 import { updateElectronApp } from 'update-electron-app';
 
@@ -64,7 +63,6 @@ async function createWindow() {
   registerPrintHandlers();
   registerSupplierHandlers();
   registerSettingsHandlers();
-  registerExpenseHandlers();
   registerInventoryHandlers();
 }
 
