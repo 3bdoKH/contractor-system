@@ -2,7 +2,6 @@ import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { app } from 'electron';
-import { seedMerchandise } from './seed';
 
 let db: Database;
 let dbPath: string;
@@ -256,7 +255,6 @@ function initDb() {
     // Column already exists
   }
 
-  seedMerchandise(db);
   seedSettings();
   // Persist initial schema to disk
   saveDb();

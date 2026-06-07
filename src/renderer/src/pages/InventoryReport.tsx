@@ -326,9 +326,9 @@ export default function InventoryReport() {
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
               <tr>
                 <th className="px-5 py-3.5 text-right">اسم البضاعة / المادة</th>
-                <th className="px-4 py-3.5 text-center">وحدة الأساس</th>
-                <th className="px-4 py-3.5 text-center">الوارد (+)</th>
-                <th className="px-4 py-3.5 text-center">المنصرف (-)</th>
+                <th className="px-4 py-3.5 text-center">الوحدة</th>
+                <th className="px-4 py-3.5 text-center">الوارد</th>
+                <th className="px-4 py-3.5 text-center">المنصرف </th>
                 <th className="px-4 py-3.5 text-center"> الرصيد</th>
                 <th className="px-4 py-3.5 text-center">آخر سعر شراء</th>
                 <th className="px-4 py-3.5 text-center">القيمة التقديرية</th>
@@ -369,7 +369,7 @@ export default function InventoryReport() {
                       {/* Base unit */}
                       <td className="px-4 py-3.5 text-center">
                         {item.base_unit ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 border border-amber-200 text-amber-700">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold text-slate-900">
                             {item.base_unit}
                           </span>
                         ) : (

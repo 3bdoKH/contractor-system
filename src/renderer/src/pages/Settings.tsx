@@ -18,7 +18,7 @@ const emptyForm: SettingsForm = {
 };
 
 const FIELDS: { key: keyof SettingsForm; label: string; placeholder: string; optional?: boolean }[] = [
-  { key: 'contractor_name', label: 'اسم المقاول / اسم النشاط', placeholder: 'مثال: الحاج حسن البطاط' },
+  { key: 'contractor_name', label: 'اسم النشاط', placeholder: 'مثال: فلان الفلاني' },
   { key: 'contractor_phone', label: 'رقم الهاتف', placeholder: '01xxxxxxxxx', optional: true },
   { key: 'contractor_address', label: 'العنوان', placeholder: 'العنوان الكامل', optional: true },
   { key: 'pdf_header_title', label: 'عنوان التقرير في PDF', placeholder: 'مثال: كشف حساب' },
@@ -68,6 +68,7 @@ export default function Settings() {
         pdf_footer_note: form.pdf_footer_note.trim(),
       });
       setSuccess(true);
+      window.dispatchEvent(new CustomEvent('settings-updated'));
       setTimeout(() => setSuccess(false), 3500);
     } catch {
       setError('حدث خطأ أثناء الحفظ');
