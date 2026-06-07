@@ -16,85 +16,143 @@ interface ManualAdjustment {
   updated_at: string;
 }
 
+/**
+ * Resolve the conversion_factor for (merchandise_id, unit) from merchandise_units.
+ * Falls back to 1 if the unit isn't found (unknown / custom unit).
+ */
+function getConversionFactor(
+  conversionMap: Map<string, number>,
+  merchandiseId: number,
+  unit: string | null,
+): number {
+  if (!unit) return 1;
+  return conversionMap.get(`${merchandiseId}:${unit}`) ?? 1;
+}
+
 function getInventoryReportData(filters?: InventoryFilters) {
   const fromDate = filters?.from || '0000-00-00';
   const toDate = filters?.to || '9999-12-31';
 
-  const rows = queryAll(`
-    SELECT
-      m.id,
-      m.name,
-      -- Opening stock
-      (
-        COALESCE((
-          SELECT SUM(sii.quantity)
-          FROM supply_invoice_items sii
-          JOIN supply_invoices si ON si.id = sii.supply_invoice_id
-          WHERE sii.merchandise_id = m.id AND si.date < ?
-        ), 0) -
-        COALESCE((
-          SELECT SUM(ii.quantity)
-          FROM invoice_items ii
-          JOIN invoices i ON i.id = ii.invoice_id
-          WHERE ii.merchandise_id = m.id AND i.date < ?
-        ), 0)
-      ) as opening_stock,
+  // Load all unit conversion factors into a Map keyed by "merchandiseId:unit"
+  const unitRows = queryAll<{
+    merchandise_id: number;
+    unit: string;
+    conversion_factor: number;
+    is_default: number;
+  }>('SELECT merchandise_id, unit, conversion_factor, is_default FROM merchandise_units');
 
-      -- Incoming
-      COALESCE((
-        SELECT SUM(sii.quantity)
-        FROM supply_invoice_items sii
-        JOIN supply_invoices si ON si.id = sii.supply_invoice_id
-        WHERE sii.merchandise_id = m.id AND si.date >= ? AND si.date <= ?
-      ), 0) as incoming,
+  // Map for conversion lookups
+  const conversionMap = new Map<string, number>();
+  // Map from merchandiseId → default unit name (for display)
+  const defaultUnitMap = new Map<number, string>();
 
-      -- Outgoing
-      COALESCE((
-        SELECT SUM(ii.quantity)
-        FROM invoice_items ii
-        JOIN invoices i ON i.id = ii.invoice_id
-        WHERE ii.merchandise_id = m.id AND i.date >= ? AND i.date <= ?
-      ), 0) as outgoing,
+  for (const u of unitRows) {
+    conversionMap.set(`${u.merchandise_id}:${u.unit}`, Number(u.conversion_factor));
+    if (u.is_default === 1) {
+      defaultUnitMap.set(u.merchandise_id, u.unit);
+    }
+  }
 
-      -- Latest unit price
-      COALESCE((
-        SELECT sii.unit_price
-        FROM supply_invoice_items sii
-        JOIN supply_invoices si ON si.id = sii.supply_invoice_id
-        WHERE sii.merchandise_id = m.id
-        ORDER BY si.date DESC, sii.id DESC
-        LIMIT 1
-      ), 0) as latest_price,
+  // Fetch raw transaction rows (quantity + unit per line item)
+  const supplyItems = queryAll<{
+    merchandise_id: number;
+    quantity: number;
+    unit: string | null;
+    date: string;
+    unit_price: number;
+  }>(`
+    SELECT sii.merchandise_id, sii.quantity, sii.unit, sii.unit_price, si.date
+    FROM supply_invoice_items sii
+    JOIN supply_invoices si ON si.id = sii.supply_invoice_id
+    WHERE sii.merchandise_id IS NOT NULL
+  `);
 
-      -- Manual adjustment
-      ia.manual_quantity,
-      ia.manual_price
-    FROM merchandise m
-    LEFT JOIN inventory_adjustments ia ON ia.merchandise_id = m.id
-    ORDER BY m.name ASC
-  `, [fromDate, fromDate, fromDate, toDate, fromDate, toDate]) as any[];
+  const salesItems = queryAll<{
+    merchandise_id: number;
+    quantity: number;
+    unit: string | null;
+    date: string;
+  }>(`
+    SELECT ii.merchandise_id, ii.quantity, ii.unit, i.date
+    FROM invoice_items ii
+    JOIN invoices i ON i.id = ii.invoice_id
+    WHERE ii.merchandise_id IS NOT NULL
+  `);
 
-  const items = rows.map((row) => {
-    const auto_closing = row.opening_stock + row.incoming - row.outgoing;
-    // If a manual quantity override is set, use it as the effective closing stock
-    const closing_stock = row.manual_quantity !== null && row.manual_quantity !== undefined
-      ? Number(row.manual_quantity)
-      : auto_closing;
-    const price = row.manual_price !== null && row.manual_price !== undefined
-      ? Number(row.manual_price)
-      : row.latest_price;
+  const merchandise = queryAll<{ id: number; name: string }>(
+    'SELECT id, name FROM merchandise ORDER BY name ASC'
+  );
+
+  const adjustments = queryAll<{
+    merchandise_id: number;
+    manual_quantity: number | null;
+    manual_price: number | null;
+  }>('SELECT merchandise_id, manual_quantity, manual_price FROM inventory_adjustments');
+  const adjMap = new Map<number, { manual_quantity: number | null; manual_price: number | null }>();
+  for (const a of adjustments) adjMap.set(a.merchandise_id, a);
+
+  // For each merchandise item, compute normalized quantities (all in base unit)
+  const items = merchandise.map(m => {
+    const mid = m.id;
+
+    // Latest purchase price (use the conversion to get per-base-unit price)
+    const latestSupply = supplyItems
+      .filter(s => s.merchandise_id === mid)
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))[0];
+
+    // per-base-unit price = unit_price / conversion_factor
+    const latest_price_raw = latestSupply
+      ? latestSupply.unit_price / getConversionFactor(conversionMap, mid, latestSupply.unit)
+      : 0;
+
+    // Opening stock: all transactions BEFORE fromDate, normalized to base units
+    const opening_incoming = supplyItems
+      .filter(s => s.merchandise_id === mid && s.date < fromDate)
+      .reduce((sum, s) => sum + s.quantity * getConversionFactor(conversionMap, mid, s.unit), 0);
+
+    const opening_outgoing = salesItems
+      .filter(s => s.merchandise_id === mid && s.date < fromDate)
+      .reduce((sum, s) => sum + s.quantity * getConversionFactor(conversionMap, mid, s.unit), 0);
+
+    const opening_stock = opening_incoming - opening_outgoing;
+
+    // Period transactions (fromDate ≤ date ≤ toDate)
+    const incoming = supplyItems
+      .filter(s => s.merchandise_id === mid && s.date >= fromDate && s.date <= toDate)
+      .reduce((sum, s) => sum + s.quantity * getConversionFactor(conversionMap, mid, s.unit), 0);
+
+    const outgoing = salesItems
+      .filter(s => s.merchandise_id === mid && s.date >= fromDate && s.date <= toDate)
+      .reduce((sum, s) => sum + s.quantity * getConversionFactor(conversionMap, mid, s.unit), 0);
+
+    const auto_closing_stock = opening_stock + incoming - outgoing;
+
+    const adj = adjMap.get(mid);
+    const closing_stock =
+      adj?.manual_quantity !== null && adj?.manual_quantity !== undefined
+        ? Number(adj.manual_quantity)
+        : auto_closing_stock;
+
+    const price =
+      adj?.manual_price !== null && adj?.manual_price !== undefined
+        ? Number(adj.manual_price)
+        : latest_price_raw;
+
     const valuation = closing_stock * price;
+    const base_unit = defaultUnitMap.get(mid) ?? '';
+
     return {
-      id: row.id,
-      name: row.name,
-      opening_stock: row.opening_stock,
-      incoming: row.incoming,
-      outgoing: row.outgoing,
-      auto_closing_stock: auto_closing,
+      id: mid,
+      name: m.name,
+      base_unit,
+      opening_stock,
+      incoming,
+      outgoing,
+      auto_closing_stock,
       closing_stock,
       latest_price: price,
       valuation,
-      has_manual_override: row.manual_quantity !== null && row.manual_quantity !== undefined,
+      has_manual_override: adj?.manual_quantity !== null && adj?.manual_quantity !== undefined,
     };
   });
 
@@ -104,11 +162,7 @@ function getInventoryReportData(filters?: InventoryFilters) {
 
   return {
     items,
-    summary: {
-      total_items,
-      total_stock_qty,
-      total_valuation,
-    },
+    summary: { total_items, total_stock_qty, total_valuation },
   };
 }
 
@@ -195,6 +249,7 @@ export function registerInventoryHandlers() {
     const tableRows = items.map((item, idx) => `
       <tr style="background:${idx % 2 === 0 ? '#fff' : '#f4f4f4'}">
         <td style="text-align: right; padding: 10px; border: 1px solid #ccc;">${item.name}${item.has_manual_override ? ' *' : ''}</td>
+        <td style="text-align: center; padding: 10px; border: 1px solid #ccc;">${item.base_unit || '—'}</td>
         <td style="text-align: center; padding: 10px; border: 1px solid #ccc;">${formatNum(item.incoming)}</td>
         <td style="text-align: center; padding: 10px; border: 1px solid #ccc;">${formatNum(item.outgoing)}</td>
         <td style="text-align: center; padding: 10px; border: 1px solid #ccc; font-weight: bold;">${formatNum(item.closing_stock)}</td>
@@ -244,10 +299,11 @@ export function registerInventoryHandlers() {
         <table>
           <thead>
             <tr>
-              <th style="text-align: right; width: 25%;">اسم البضاعة / المادة</th>
-              <th style="width: 12%;">الوارد (+)</th>
-              <th style="width: 12%;">المنصرف (-)</th>
-              <th style="width: 12%;"> الرصيد</th>
+              <th style="text-align: right; width: 22%;">اسم البضاعة / المادة</th>
+              <th style="width: 10%;">وحدة الأساس</th>
+              <th style="width: 11%;">الوارد (+)</th>
+              <th style="width: 11%;">المنصرف (-)</th>
+              <th style="width: 11%;"> الرصيد</th>
               <th style="width: 13%;">آخر سعر شراء</th>
               <th style="width: 14%;">القيمة التقديرية</th>
             </tr>

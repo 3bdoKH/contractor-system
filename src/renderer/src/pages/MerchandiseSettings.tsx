@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Plus, Trash2, Pencil, Check, X, PackageOpen, Tag, Star } from 'lucide-react';
+import { Plus, Trash2, Pencil, Check, X, PackageOpen, Tag, Star, ArrowLeftRight } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface UnitDraft {
-  id?: number;          // existing unit
+  id?: number;
   unit: string;
   is_default: boolean;
+  conversion_factor: number; // base unit = 1, others = how many base units
 }
 
 interface ItemDraft {
@@ -22,49 +23,81 @@ const inputClass =
 const btnPrimary =
   'flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm';
 
-const btnGhost =
-  'flex items-center gap-1.5 px-3 py-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors text-sm';
+// ─── Unit Row in Modal ─────────────────────────────────────────────────────────
 
-// ─── Unit tag chip ─────────────────────────────────────────────────────────────
-
-function UnitChip({
+function UnitRow({
   unit,
-  isDefault,
+  baseUnitName,
   onSetDefault,
   onDelete,
+  onChangeFactor,
+  onChangeName,
 }: {
   unit: UnitDraft;
-  isDefault: boolean;
+  baseUnitName: string;
   onSetDefault: () => void;
   onDelete: () => void;
+  onChangeFactor: (v: number) => void;
+  onChangeName: (v: string) => void;
 }) {
+  const isBase = unit.is_default;
+
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-        isDefault
-          ? 'bg-amber-50 border-amber-300 text-amber-700'
-          : 'bg-slate-50 border-slate-200 text-slate-600'
-      }`}
-    >
-      {isDefault && <Star size={10} className="text-amber-500 fill-amber-400" />}
-      {unit.unit}
+    <div className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all ${isBase
+      ? 'bg-amber-50 border-amber-200'
+      : 'bg-slate-50 border-slate-200'
+    }`}>
+      {/* Star / set-default */}
       <button
         type="button"
-        title="تعيين كافتراضي"
         onClick={onSetDefault}
-        className="hover:text-amber-500 transition-colors"
+        disabled={isBase}
+        title={isBase ? 'وحدة الأساس' : 'تعيين كوحدة أساس'}
+        className={`shrink-0 p-1 rounded-lg transition-colors ${isBase
+          ? 'text-amber-500 cursor-default'
+          : 'text-slate-300 hover:text-amber-500'
+        }`}
       >
-        <Star size={11} className={isDefault ? 'fill-amber-400 text-amber-400' : ''} />
+        <Star size={14} className={isBase ? 'fill-amber-400' : ''} />
       </button>
+
+      {/* Unit name */}
+      <input
+        type="text"
+        value={unit.unit}
+        onChange={e => onChangeName(e.target.value)}
+        placeholder="اسم الوحدة"
+        className="flex-1 min-w-0 px-2 py-1 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+      />
+
+      {/* Conversion factor */}
+      {isBase ? (
+        <span className="text-xs text-amber-600 font-semibold whitespace-nowrap px-2">= 1 (أساس)</span>
+      ) : (
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-xs text-slate-400 whitespace-nowrap">=</span>
+          <input
+            type="number"
+            min="0.0001"
+            step="0.01"
+            value={unit.conversion_factor}
+            onChange={e => onChangeFactor(parseFloat(e.target.value) || 1)}
+            className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+          />
+          <span className="text-xs text-slate-500 whitespace-nowrap">{baseUnitName || '—'}</span>
+        </div>
+      )}
+
+      {/* Delete */}
       <button
         type="button"
-        title="حذف الوحدة"
         onClick={onDelete}
-        className="hover:text-red-500 transition-colors"
+        className="shrink-0 p-1 rounded-lg text-slate-300 hover:text-red-500 transition-colors"
+        title="حذف الوحدة"
       >
-        <X size={11} />
+        <X size={14} />
       </button>
-    </span>
+    </div>
   );
 }
 
@@ -81,30 +114,50 @@ function ItemModal({
 }) {
   const [name, setName] = useState(initial?.name ?? '');
   const [units, setUnits] = useState<UnitDraft[]>(
-    initial?.units.map(u => ({ id: u.id, unit: u.unit, is_default: u.is_default === 1 })) ?? []
+    initial?.units.map(u => ({
+      id: u.id,
+      unit: u.unit,
+      is_default: u.is_default === 1,
+      conversion_factor: u.conversion_factor ?? 1,
+    })) ?? []
   );
   const [unitInput, setUnitInput] = useState('');
+
+  const baseUnit = units.find(u => u.is_default);
+  const baseUnitName = baseUnit?.unit ?? '';
 
   function addUnit() {
     const trimmed = unitInput.trim();
     if (!trimmed || units.find(u => u.unit === trimmed)) return;
-    setUnits(prev => [...prev, { unit: trimmed, is_default: prev.length === 0 }]);
+    const isFirst = units.length === 0;
+    setUnits(prev => [...prev, { unit: trimmed, is_default: isFirst, conversion_factor: isFirst ? 1 : 1 }]);
     setUnitInput('');
   }
 
   function removeUnit(idx: number) {
     setUnits(prev => {
+      const wasDefault = prev[idx].is_default;
       const next = prev.filter((_, i) => i !== idx);
-      // If we removed the default and there are remaining, set first as default
-      if (prev[idx].is_default && next.length > 0) {
-        next[0] = { ...next[0], is_default: true };
-      }
+      if (wasDefault && next.length > 0) next[0] = { ...next[0], is_default: true };
       return next;
     });
   }
 
   function setDefault(idx: number) {
-    setUnits(prev => prev.map((u, i) => ({ ...u, is_default: i === idx })));
+    setUnits(prev => prev.map((u, i) => ({
+      ...u,
+      is_default: i === idx,
+      // Reset conversion_factor to 1 for the new base unit
+      conversion_factor: i === idx ? 1 : u.conversion_factor,
+    })));
+  }
+
+  function updateFactor(idx: number, v: number) {
+    setUnits(prev => prev.map((u, i) => i === idx ? { ...u, conversion_factor: v } : u));
+  }
+
+  function updateUnitName(idx: number, v: string) {
+    setUnits(prev => prev.map((u, i) => i === idx ? { ...u, unit: v } : u));
   }
 
   function handleSave() {
@@ -114,7 +167,7 @@ function ItemModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">
@@ -143,24 +196,42 @@ function ItemModal({
 
         {/* Units */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            وحدات القياس
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-slate-700">
+              وحدات القياس والتحويل
+            </label>
+            {baseUnitName && (
+              <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                <Star size={10} className="fill-amber-400" /> الأساس: {baseUnitName}
+              </span>
+            )}
+          </div>
 
-          {/* Unit chips */}
-          {units.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {units.map((u, idx) => (
-                <UnitChip
-                  key={idx}
-                  unit={u}
-                  isDefault={u.is_default}
-                  onSetDefault={() => setDefault(idx)}
-                  onDelete={() => removeUnit(idx)}
-                />
-              ))}
+          {/* Explanation banner */}
+          {units.length >= 2 && (
+            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl mb-3 text-xs text-blue-700">
+              <ArrowLeftRight size={14} className="shrink-0 mt-0.5" />
+              <span>
+                حدد <strong>وحدة الأساس</strong> (النجمة ★) وأدخل معامل التحويل لباقي الوحدات.
+                مثال: إذا كانت <strong>شكارة</strong> هي الأساس، فـ <strong>1 طن = 20 شكارة</strong>، اكتب 20 في خانة الطن.
+              </span>
             </div>
           )}
+
+          {/* Unit rows */}
+          <div className="space-y-2 mb-3">
+            {units.map((u, idx) => (
+              <UnitRow
+                key={idx}
+                unit={u}
+                baseUnitName={baseUnitName}
+                onSetDefault={() => setDefault(idx)}
+                onDelete={() => removeUnit(idx)}
+                onChangeFactor={v => updateFactor(idx, v)}
+                onChangeName={v => updateUnitName(idx, v)}
+              />
+            ))}
+          </div>
 
           {/* Add unit input */}
           <div className="flex gap-2">
@@ -168,7 +239,7 @@ function ItemModal({
               type="text"
               value={unitInput}
               onChange={e => setUnitInput(e.target.value)}
-              placeholder="مثال: شكاره، طن، متر..."
+              placeholder="اسم وحدة جديدة (مثال: شكاره، طن، متر...)"
               className={inputClass}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addUnit(); } }}
             />
@@ -176,12 +247,12 @@ function ItemModal({
               type="button"
               onClick={addUnit}
               disabled={!unitInput.trim()}
-              className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-sm font-medium transition-colors disabled:opacity-40"
+              className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 shrink-0"
             >
               <Plus size={16} />
             </button>
           </div>
-          <p className="text-xs text-slate-400 mt-1.5">اضغط Enter أو زر + لإضافة وحدة. النجمة ★ تحدد الوحدة الافتراضية.</p>
+          <p className="text-xs text-slate-400 mt-1.5">اضغط Enter أو زر + لإضافة وحدة.</p>
         </div>
 
         {/* Actions */}
@@ -226,16 +297,15 @@ export default function MerchandiseSettings() {
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = items.filter(i => i.name.includes(search) || i.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = items.filter(i =>
+    i.name.includes(search) || i.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   async function handleSave(draft: ItemDraft) {
     if (modal.item) {
-      // Update name
       await window.api.merchandise.update(modal.item.id, { name: draft.name });
-      // Replace units
       await window.api.merchandise.setUnits(modal.item.id, draft.units);
     } else {
-      // Create item with initial units
       await window.api.merchandise.create({ name: draft.name, units: draft.units });
     }
     setModal({ open: false });
@@ -255,27 +325,24 @@ export default function MerchandiseSettings() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">الأصناف والوحدات</h1>
-          <p className="text-slate-500 text-sm mt-1">إدارة قائمة الأصناف ووحدات القياس المتاحة لكل صنف</p>
+          <p className="text-slate-500 text-sm mt-1">
+            إدارة الأصناف ووحدات القياس مع معاملات التحويل — تستخدم لحساب المخزن بدقة
+          </p>
         </div>
-        <button
-          onClick={() => setModal({ open: true })}
-          className={btnPrimary}
-        >
+        <button onClick={() => setModal({ open: true })} className={btnPrimary}>
           <Plus size={16} />
           إضافة صنف
         </button>
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="بحث في الأصناف..."
-          className={`${inputClass} pr-4 pl-4`}
-        />
-      </div>
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="بحث في الأصناف..."
+        className={inputClass}
+      />
 
       {/* Content */}
       {loading ? (
@@ -298,64 +365,78 @@ export default function MerchandiseSettings() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(item => (
-            <div
-              key={item.id}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3 hover:shadow-md transition-shadow group"
-            >
-              {/* Item header */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="p-2 bg-blue-50 rounded-xl shrink-0">
-                    <Tag size={16} className="text-blue-600" />
-                  </div>
-                  <p className="font-bold text-slate-900 truncate text-sm">{item.name}</p>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <button
-                    onClick={() => setModal({ open: true, item })}
-                    className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
-                    title="تعديل"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    disabled={deletingId === item.id}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-                    title="حذف"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
+          {filtered.map(item => {
+            const baseUnit = item.units.find(u => u.is_default === 1);
+            const otherUnits = item.units.filter(u => u.is_default !== 1);
 
-              {/* Units */}
-              {item.units.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {item.units.map(u => (
-                    <span
-                      key={u.id}
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                        u.is_default
-                          ? 'bg-amber-50 border-amber-300 text-amber-700'
-                          : 'bg-slate-50 border-slate-200 text-slate-600'
-                      }`}
+            return (
+              <div
+                key={item.id}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3 hover:shadow-md transition-shadow group"
+              >
+                {/* Item header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-2 bg-blue-50 rounded-xl shrink-0">
+                      <Tag size={16} className="text-blue-600" />
+                    </div>
+                    <p className="font-bold text-slate-900 truncate text-sm">{item.name}</p>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      onClick={() => setModal({ open: true, item })}
+                      className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
+                      title="تعديل"
                     >
-                      {u.is_default && <Star size={9} className="fill-amber-400 text-amber-400" />}
-                      {u.unit}
-                    </span>
-                  ))}
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      disabled={deletingId === item.id}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                      title="حذف"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-xs text-slate-400 italic">لا توجد وحدات محددة</p>
-              )}
-            </div>
-          ))}
+
+                {/* Units display */}
+                {item.units.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {/* Base unit */}
+                    {baseUnit && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 border border-amber-300 text-amber-700">
+                          <Star size={9} className="fill-amber-400 text-amber-400" />
+                          {baseUnit.unit}
+                          <span className="text-amber-500">(أساس)</span>
+                        </span>
+                      </div>
+                    )}
+                    {/* Other units with conversion */}
+                    {otherUnits.map(u => (
+                      <div key={u.id} className="flex items-center gap-1.5 text-xs text-slate-500">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-slate-600 font-medium">
+                          {u.unit}
+                        </span>
+                        <ArrowLeftRight size={10} className="text-slate-300" />
+                        <span className="text-slate-400">
+                          {u.conversion_factor} {baseUnit?.unit ?? ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">لا توجد وحدات محددة</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Summary bar */}
+      {/* Summary */}
       {!loading && items.length > 0 && (
         <p className="text-xs text-slate-400 text-center">
           {items.length} صنف · {items.reduce((s, i) => s + i.units.length, 0)} وحدة

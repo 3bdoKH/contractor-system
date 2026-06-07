@@ -211,6 +211,7 @@ function initDb() {
       merchandise_id INTEGER NOT NULL REFERENCES merchandise(id) ON DELETE CASCADE,
       unit TEXT NOT NULL,
       is_default INTEGER NOT NULL DEFAULT 0,
+      conversion_factor REAL NOT NULL DEFAULT 1,
       UNIQUE(merchandise_id, unit)
     );
   `);
@@ -241,10 +242,18 @@ function initDb() {
       merchandise_id INTEGER NOT NULL REFERENCES merchandise(id) ON DELETE CASCADE,
       unit TEXT NOT NULL,
       is_default INTEGER NOT NULL DEFAULT 0,
+      conversion_factor REAL NOT NULL DEFAULT 1,
       UNIQUE(merchandise_id, unit)
     )`);
   } catch (_err) {
     // Already exists
+  }
+
+  // Migrate: add conversion_factor column to existing merchandise_units rows
+  try {
+    db.run('ALTER TABLE merchandise_units ADD COLUMN conversion_factor REAL NOT NULL DEFAULT 1');
+  } catch (_err) {
+    // Column already exists
   }
 
   seedMerchandise(db);

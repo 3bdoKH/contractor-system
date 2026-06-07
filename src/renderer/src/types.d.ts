@@ -43,7 +43,7 @@ declare global {
         addUnit: (merchandiseId: number, unit: string, isDefault: boolean) => Promise<{ id: number }>;
         setDefaultUnit: (merchandiseId: number, unitId: number) => Promise<{ success: boolean }>;
         deleteUnit: (unitId: number) => Promise<{ success: boolean }>;
-        setUnits: (merchandiseId: number, units: { unit: string; is_default: boolean }[]) => Promise<{ success: boolean }>;
+        setUnits: (merchandiseId: number, units: { unit: string; is_default: boolean; conversion_factor: number }[]) => Promise<{ success: boolean }>;
       };
       print: {
         customerReport: (customerId: number) => Promise<string>;
@@ -147,6 +147,7 @@ declare global {
     merchandise_id: number;
     unit: string;
     is_default: number; // 1 = default, 0 = not
+    conversion_factor: number; // how many base units = 1 of this unit
   }
 
   interface MerchandiseWithUnits extends Merchandise {
@@ -205,6 +206,7 @@ declare global {
   interface InventoryReportItem {
     id: number;
     name: string;
+    base_unit: string;
     opening_stock: number;
     incoming: number;
     outgoing: number;

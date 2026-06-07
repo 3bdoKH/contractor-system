@@ -153,7 +153,7 @@ const api = {
     setDefaultUnit: (merchandiseId: number, unitId: number) =>
       ipcRenderer.invoke('merchandise:setDefaultUnit', merchandiseId, unitId),
     deleteUnit: (unitId: number) => ipcRenderer.invoke('merchandise:deleteUnit', unitId),
-    setUnits: (merchandiseId: number, units: { unit: string; is_default: boolean }[]) =>
+    setUnits: (merchandiseId: number, units: { unit: string; is_default: boolean; conversion_factor: number }[]) =>
       ipcRenderer.invoke('merchandise:setUnits', merchandiseId, units),
   },
   print: {

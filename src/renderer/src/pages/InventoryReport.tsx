@@ -326,6 +326,7 @@ export default function InventoryReport() {
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
               <tr>
                 <th className="px-5 py-3.5 text-right">اسم البضاعة / المادة</th>
+                <th className="px-4 py-3.5 text-center">وحدة الأساس</th>
                 <th className="px-4 py-3.5 text-center">الوارد (+)</th>
                 <th className="px-4 py-3.5 text-center">المنصرف (-)</th>
                 <th className="px-4 py-3.5 text-center"> الرصيد</th>
@@ -338,14 +339,14 @@ export default function InventoryReport() {
               {loading ? (
                 [...Array(3)].map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    {[...Array(adjustMode ? 8 : 7)].map((_, j) => (
+                    {[...Array(adjustMode ? 9 : 8)].map((_, j) => (
                       <td key={j} className="px-4 py-4"><div className="h-4 bg-slate-100 rounded w-full mx-auto" /></td>
                     ))}
                   </tr>
                 ))
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={adjustMode ? 8 : 7} className="text-center py-12 text-slate-400">
+                  <td colSpan={adjustMode ? 9 : 8} className="text-center py-12 text-slate-400">
                     لا توجد بضائع متوفرة تطابق خيارات البحث 📦
                   </td>
                 </tr>
@@ -363,6 +364,17 @@ export default function InventoryReport() {
                             </span>
                           )}
                         </div>
+                      </td>
+
+                      {/* Base unit */}
+                      <td className="px-4 py-3.5 text-center">
+                        {item.base_unit ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 border border-amber-200 text-amber-700">
+                            {item.base_unit}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
                       </td>
 
                       <td className="px-4 py-3.5 text-center font-bold text-slate-900">
