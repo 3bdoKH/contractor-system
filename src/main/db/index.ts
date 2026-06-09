@@ -213,6 +213,15 @@ function initDb() {
       conversion_factor REAL NOT NULL DEFAULT 1,
       UNIQUE(merchandise_id, unit)
     );
+
+    CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrate existing databases to add the new 'unit' column

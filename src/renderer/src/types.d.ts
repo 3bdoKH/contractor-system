@@ -85,6 +85,11 @@ declare global {
         resetAllAdjustments: () => Promise<{ success: boolean }>;
         resetToZero: () => Promise<{ success: boolean; count: number }>;
       };
+      expenses: {
+        getAll: () => Promise<Expense[]>;
+        create: (data: { description: string; amount: number; date: string; notes?: string }) => Promise<{ id: number }>;
+        delete: (id: number) => Promise<{ success: boolean }>;
+      };
     };
   }
 
@@ -233,5 +238,15 @@ declare global {
       total_stock_qty: number;
       total_valuation: number;
     };
+  }
+
+  interface Expense {
+    type: 'manual' | 'supplier_payment';
+    id: number;
+    description: string;
+    amount: number;
+    date: string;
+    notes?: string | null;
+    created_at?: string;
   }
 }

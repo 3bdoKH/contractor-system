@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Truck, Settings, Boxes, Package } from 'lucide-react';
+import { LayoutDashboard, Users, Truck, Settings, Boxes, Package, Receipt } from 'lucide-react';
 import packageJSON from '../../../../package.json';
 
 const navItems = [
   { to: '/', label: 'لوحة التحكم', icon: LayoutDashboard, end: true },
   { to: '/customers', label: 'العملاء', icon: Users, end: false },
   { to: '/suppliers', label: 'الموردين', icon: Truck, end: false },
+  { to: '/expenses', label: 'المصاريف', icon: Receipt, end: false },
   { to: '/inventory-report', label: 'تقرير المخزن', icon: Boxes, end: false },
   { to: '/merchandise-settings', label: 'الأصناف والوحدات', icon: Package, end: false },
 ];

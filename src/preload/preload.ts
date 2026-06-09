@@ -202,6 +202,12 @@ const api = {
     resetToZero: () =>
       ipcRenderer.invoke('inventory:resetToZero'),
   },
+  expenses: {
+    getAll: (): Promise<any[]> => ipcRenderer.invoke('expenses:getAll'),
+    create: (data: { description: string; amount: number; date: string; notes?: string }) =>
+      ipcRenderer.invoke('expenses:create', data),
+    delete: (id: number) => ipcRenderer.invoke('expenses:delete', id),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);
