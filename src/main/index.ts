@@ -11,6 +11,7 @@ import { registerSupplierHandlers } from './ipc/suppliers';
 import { registerSettingsHandlers } from './ipc/settings';
 import { registerInventoryHandlers } from './ipc/inventory';
 import { registerExpenseHandlers } from './ipc/expenses';
+import { registerIncomeHandlers } from './ipc/incomes';
 import { updateElectronApp } from 'update-electron-app';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -66,6 +67,7 @@ async function createWindow() {
   registerSettingsHandlers();
   registerInventoryHandlers();
   registerExpenseHandlers();
+  registerIncomeHandlers();
 }
 
 app.on('ready', () => {

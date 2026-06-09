@@ -13,6 +13,7 @@ import Settings from './pages/Settings';
 import MerchandiseSettings from './pages/MerchandiseSettings';
 import InventoryReport from './pages/InventoryReport';
 import Expenses from './pages/Expenses';
+import Incomes from './pages/Incomes';
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="inventory-report" element={<InventoryReport />} />
           <Route path="merchandise-settings" element={<MerchandiseSettings />} />
           <Route path="expenses" element={<Expenses />} />
+          <Route path="incomes" element={<Incomes />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

@@ -208,6 +208,12 @@ const api = {
       ipcRenderer.invoke('expenses:create', data),
     delete: (id: number) => ipcRenderer.invoke('expenses:delete', id),
   },
+  incomes: {
+    getAll: (): Promise<any[]> => ipcRenderer.invoke('incomes:getAll'),
+    create: (data: { description: string; amount: number; date: string; notes?: string }) =>
+      ipcRenderer.invoke('incomes:create', data),
+    delete: (id: number) => ipcRenderer.invoke('incomes:delete', id),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

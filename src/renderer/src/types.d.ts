@@ -90,6 +90,11 @@ declare global {
         create: (data: { description: string; amount: number; date: string; notes?: string }) => Promise<{ id: number }>;
         delete: (id: number) => Promise<{ success: boolean }>;
       };
+      incomes: {
+        getAll: () => Promise<Income[]>;
+        create: (data: { description: string; amount: number; date: string; notes?: string }) => Promise<{ id: number }>;
+        delete: (id: number) => Promise<{ success: boolean }>;
+      };
     };
   }
 
@@ -242,6 +247,16 @@ declare global {
 
   interface Expense {
     type: 'manual' | 'supplier_payment';
+    id: number;
+    description: string;
+    amount: number;
+    date: string;
+    notes?: string | null;
+    created_at?: string;
+  }
+
+  interface Income {
+    type: 'manual' | 'customer_payment';
     id: number;
     description: string;
     amount: number;
