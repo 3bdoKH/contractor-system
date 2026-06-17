@@ -43,6 +43,12 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({
       name: 'contractor_system',
+      // Code signing — set CERTIFICATE_FILE and CERTIFICATE_PASSWORD in GitHub secrets
+      // (or leave unset for unsigned local builds)
+      ...(process.env.CERTIFICATE_FILE && {
+        certificateFile: process.env.CERTIFICATE_FILE,
+        certificatePassword: process.env.CERTIFICATE_PASSWORD,
+      }),
     }),
     new MakerZIP({}, ['darwin']),
     new MakerDeb({}),

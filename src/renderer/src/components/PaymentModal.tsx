@@ -26,10 +26,6 @@ export default function PaymentModal({ invoice, onClose, onSaved }: PaymentModal
       setError('يرجى إدخال مبلغ صحيح');
       return;
     }
-    if (amountNum > remaining) {
-      setError('مبلغ الدفعة لا يمكن أن يتجاوز المبلغ المتبقي للفاتورة');
-      return;
-    }
     if (!date) {
       setError('يرجى إدخال التاريخ');
       return;
