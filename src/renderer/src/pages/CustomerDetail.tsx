@@ -25,6 +25,7 @@ export default function CustomerDetail() {
   const [advanceError, setAdvanceError] = useState('');
   const [savingAdvance, setSavingAdvance] = useState(false);
   const [showAdvanceList, setShowAdvanceList] = useState(true);
+  const [advanceSweepInfo, setAdvanceSweepInfo] = useState<{ applied: number } | null>(null);
 
   useEffect(() => {
     loadCustomer();
@@ -94,7 +95,7 @@ export default function CustomerDetail() {
     setSavingAdvance(true);
     setAdvanceError('');
     try {
-      await window.api.customers.addAdvance({
+      const result = await window.api.customers.addAdvance({
         customer_id: customerId,
         amount: amountNum,
         date: advanceForm.date,
@@ -102,6 +103,10 @@ export default function CustomerDetail() {
       });
       setShowAdvanceModal(false);
       setAdvanceForm({ amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
+      if (result.applied_to_existing > 0) {
+        setAdvanceSweepInfo({ applied: result.applied_to_existing });
+        setTimeout(() => setAdvanceSweepInfo(null), 5000);
+      }
       await loadCustomer();
     } catch {
       setAdvanceError('حدث خطأ أثناء الحفظ');
@@ -155,6 +160,19 @@ export default function CustomerDetail() {
         العملاء
         <ArrowRight size={16} />
       </Link>
+
+      {/* Sweep notification banner */}
+      {advanceSweepInfo && (
+        <div className="flex items-center gap-3 p-4 bg-teal-50 border border-teal-200 rounded-xl text-teal-700 text-sm">
+          <span className="text-xl">✓</span>
+          <span>
+            تم تسوية فواتير سابقة بمبلغ <strong>{formatCurrency(advanceSweepInfo.applied)} ج.م</strong> من الدفعة المقدمة تلقائياً
+          </span>
+          <button onClick={() => setAdvanceSweepInfo(null)} className="mr-auto text-teal-500 hover:text-teal-700">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Customer Header */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">

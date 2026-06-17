@@ -11,7 +11,7 @@ declare global {
         update: (id: number, data: { name: string; phone?: string; address?: string; notes?: string }) => Promise<{ success: boolean }>;
         delete: (id: number) => Promise<{ success: boolean }>;
         search: (query: string) => Promise<Customer[]>;
-        addAdvance: (data: { customer_id: number; amount: number; date: string; notes?: string }) => Promise<{ id: number }>;
+        addAdvance: (data: { customer_id: number; amount: number; date: string; notes?: string }) => Promise<{ id: number; applied_to_existing: number }>;
         getAdvances: (customerId: number) => Promise<CustomerAdvance[]>;
         deleteAdvance: (id: number) => Promise<{ success: boolean }>;
       };
@@ -131,6 +131,7 @@ declare global {
     amount: number;
     date: string;
     notes?: string;
+    is_advance?: number; // 1 = auto-applied from advance balance, 0 or undefined = manual
     created_at: string;
   }
 

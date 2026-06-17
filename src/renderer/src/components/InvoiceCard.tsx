@@ -173,22 +173,30 @@ export default function InvoiceCard({ invoice, customerId, onDeleted, onPaymentA
               </h4>
               {invoice.payments && invoice.payments.length > 0 ? (
                 <div className="space-y-2">
-                  {invoice.payments.map(pmt => (
-                    <div key={pmt.id} className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                      <button
-                        onClick={() => handleDeletePayment(pmt.id)}
-                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="حذف الدفعة"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                      <div className="flex items-center gap-4 text-sm">
-                        {pmt.notes && <span className="text-emerald-600 text-xs">{pmt.notes}</span>}
-                        <span className="text-emerald-700">{pmt.date}</span>
-                        <span className="font-bold text-emerald-800">{formatCurrency(pmt.amount)} ج.م</span>
+                  {invoice.payments.map(pmt => {
+                    const isAdvance = pmt.is_advance === 1;
+                    return (
+                      <div key={pmt.id} className={`flex items-center justify-between p-3 rounded-lg border ${isAdvance ? 'bg-teal-50 border-teal-200' : 'bg-emerald-50 border-emerald-100'}`}>
+                        <button
+                          onClick={() => handleDeletePayment(pmt.id)}
+                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title={isAdvance ? 'حذف الدفعة المقدمة (سيتم استرداد الرصيد تلقائياً)' : 'حذف الدفعة'}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <div className="flex items-center gap-4 text-sm">
+                          {isAdvance && (
+                            <span className="text-[10px] font-bold bg-teal-100 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">
+                              دفعة مقدمة
+                            </span>
+                          )}
+                          {pmt.notes && !isAdvance && <span className={`text-xs ${isAdvance ? 'text-teal-600' : 'text-emerald-600'}`}>{pmt.notes}</span>}
+                          <span className={isAdvance ? 'text-teal-700' : 'text-emerald-700'}>{pmt.date}</span>
+                          <span className={`font-bold ${isAdvance ? 'text-teal-800' : 'text-emerald-800'}`}>{formatCurrency(pmt.amount)} ج.م</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-slate-400 text-center py-3">لا توجد مدفوعات بعد</p>

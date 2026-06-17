@@ -154,12 +154,53 @@ export class CustomerRepository {
 
   // ─── Advance Payments ────────────────────────────────────────────────────
 
-  addAdvance(data: { customer_id: number; amount: number; date: string; notes?: string }): { id: number } {
-    const id = runWrite(
+  addAdvance(data: { customer_id: number; amount: number; date: string; notes?: string }): { id: number; applied_to_existing: number } {
+    const db = getDb();
+
+    // 1. Insert the advance row
+    db.run(
       'INSERT INTO customer_advances (customer_id, amount, used_amount, date, notes) VALUES (?, ?, 0, ?, ?)',
       [data.customer_id, data.amount, data.date, data.notes ?? null]
     );
-    return { id };
+    const idRow = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+    const advanceId = idRow!.id;
+
+    // 2. Find existing invoices with a remaining balance, oldest first
+    const invoices = queryAll<{ id: number; total: number; paid: number }>(
+      `SELECT i.id, i.total, COALESCE(SUM(p.amount), 0) as paid
+       FROM invoices i
+       LEFT JOIN payments p ON p.invoice_id = i.id
+       WHERE i.customer_id = ?
+       GROUP BY i.id
+       HAVING i.total > paid
+       ORDER BY i.date ASC, i.id ASC`,
+      [data.customer_id]
+    );
+
+    // 3. Apply advance FIFO to existing unpaid invoices
+    let available = data.amount;
+    let totalApplied = 0;
+
+    for (const inv of invoices) {
+      if (available <= 0) break;
+      const remaining = inv.total - inv.paid;
+      const apply = Math.min(remaining, available);
+
+      db.run(
+        'INSERT INTO payments (invoice_id, amount, date, notes, is_advance) VALUES (?, ?, ?, ?, 1)',
+        [inv.id, apply, data.date, 'دفعة مقدمة تلقائية']
+      );
+      db.run(
+        'UPDATE customer_advances SET used_amount = used_amount + ? WHERE id = ?',
+        [apply, advanceId]
+      );
+
+      available -= apply;
+      totalApplied += apply;
+    }
+
+    saveDb();
+    return { id: advanceId, applied_to_existing: totalApplied };
   }
 
   getAdvances(customerId: number): CustomerAdvance[] {

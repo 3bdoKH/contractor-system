@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
-import { getDb, queryAll, saveDb } from '../db';
+import { getDb, queryAll, queryOne, saveDb } from '../db';
+import { CustomerRepository } from '../db/repositories/CustomerRepository';
 
 interface AddPaymentData {
   invoice_id: number;
@@ -9,6 +10,8 @@ interface AddPaymentData {
 }
 
 export function registerPaymentHandlers() {
+  const customerRepo = new CustomerRepository();
+
   // Add payment
   ipcMain.handle('payments:add', (_event, data: AddPaymentData) => {
     const db = getDb();
@@ -30,9 +33,27 @@ export function registerPaymentHandlers() {
     );
   });
 
-  // Delete payment
+  // Delete payment — reverses advance balance if the payment was auto-applied
   ipcMain.handle('payments:delete', (_event, id: number) => {
-    getDb().run('DELETE FROM payments WHERE id = ?', [id]);
+    const db = getDb();
+
+    // Check if this is an advance payment and get its invoice's customer
+    const pmtRow = queryOne<{ amount: number; is_advance: number; invoice_id: number }>(
+      'SELECT amount, is_advance, invoice_id FROM payments WHERE id = ?',
+      [id]
+    );
+
+    if (pmtRow?.is_advance) {
+      const invRow = queryOne<{ customer_id: number }>(
+        'SELECT customer_id FROM invoices WHERE id = ?',
+        [pmtRow.invoice_id]
+      );
+      if (invRow) {
+        customerRepo.reverseBalance(invRow.customer_id, pmtRow.amount);
+      }
+    }
+
+    db.run('DELETE FROM payments WHERE id = ?', [id]);
     saveDb();
     return { success: true };
   });
