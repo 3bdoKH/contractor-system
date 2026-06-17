@@ -188,6 +188,17 @@ export function registerPrintHandlers() {
     const totalPaid = invoicesWithDetails.reduce((s, i) => s + i.total_paid, 0);
     const remaining = totalInvoiced - totalPaid;
 
+    // Advance balance
+    const advRow = queryOne<{ balance: number }>(
+      'SELECT COALESCE(SUM(amount - used_amount), 0) as balance FROM customer_advances WHERE customer_id = ?',
+      [customerId]
+    );
+    const advanceBalance = advRow?.balance ?? 0;
+    const advances = queryAll(
+      'SELECT * FROM customer_advances WHERE customer_id = ? ORDER BY date ASC',
+      [customerId]
+    ) as any[];
+
     const invoicesHTML = invoicesWithDetails.map(inv => {
       const invPaid = inv.total_paid;
       const invRemaining = inv.total - invPaid;
@@ -211,15 +222,17 @@ export function registerPrintHandlers() {
               <tr>
                 <th>التاريخ</th>
                 <th>المبلغ</th>
+                <th>النوع</th>
                 <th>ملاحظات</th>
               </tr>
             </thead>
             <tbody>
               ${inv.payments.map((p: any) => `
-                <tr>
+                <tr style="background: ${p.is_advance ? '#f0fdfc' : '#fff'}">
                   <td style="text-align: center;">${p.date}</td>
                   <td style="text-align: center;">${formatNum(p.amount)} ج.م</td>
-                  <td style="text-align: center;">${p.notes || '-'}</td>
+                  <td style="text-align: center; font-weight: ${p.is_advance ? '700' : 'normal'}; color: ${p.is_advance ? '#0f766e' : '#000'}">${p.is_advance ? 'دفعة مقدمة' : 'دفعة عادية'}</td>
+                  <td style="text-align: center;">${(!p.is_advance && p.notes) ? p.notes : '-'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -277,7 +290,7 @@ export function registerPrintHandlers() {
           ${customer.address ? `<div class="detail">العنوان: ${customer.address}</div>` : ''}
         </div>
 
-        <div class="summary-box">
+        <div class="summary-box" style="grid-template-columns: repeat(4, 1fr);">
           <div class="summary-card">
             <div class="label">إجمالي الفواتير</div>
             <div class="value">${formatNum(totalInvoiced)} ج.م</div>
@@ -290,9 +303,45 @@ export function registerPrintHandlers() {
             <div class="label">الرصيد المتبقي</div>
             <div class="value">${formatNum(remaining)} ج.م</div>
           </div>
+          <div class="summary-card" style="border: 1px solid #0f766e;">
+            <div class="label" style="color: #0f766e;">رصيد مقدم متاح</div>
+            <div class="value" style="color: ${advanceBalance > 0 ? '#0f766e' : '#999'};">${formatNum(advanceBalance)} ج.م</div>
+          </div>
         </div>
 
         ${invoicesHTML}
+
+        ${advances.length > 0 ? `
+          <div class="invoice-block" style="margin-top: 20px;">
+            <div class="invoice-header" style="background: #0f766e;">
+              <span>سجل الدفعات المقدمة</span>
+              <span>الرصيد المتاح: ${formatNum(advanceBalance)} ج.م</span>
+            </div>
+            <table class="payments-table">
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>المبلغ الأصلي</th>
+                  <th>المستخدم</th>
+                  <th>المتبقي</th>
+                  <th>ملاحظات</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${advances.map((adv: any, i: number) => `
+                  <tr style="background: ${i % 2 === 0 ? '#f0fdfc' : '#fff'};">
+                    <td style="text-align: center;">${adv.date}</td>
+                    <td style="text-align: center;">${formatNum(adv.amount)} ج.م</td>
+                    <td style="text-align: center;">${formatNum(adv.used_amount)} ج.م</td>
+                    <td style="text-align: center; font-weight: 700; color: ${(adv.amount - adv.used_amount) > 0 ? '#0f766e' : '#999'};">${formatNum(adv.amount - adv.used_amount)} ج.م</td>
+                    <td style="text-align: center;">${adv.notes || '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : ''}
+
         ${cfg.pdf_footer_note ? `<div class="footer-note">${cfg.pdf_footer_note}</div>` : ''}
       </body>
       </html>
