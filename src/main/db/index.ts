@@ -273,6 +273,34 @@ function initDb() {
     // Column already exists
   }
 
+  // Migrate: create expenses table if it doesn't exist on older DBs
+  try {
+    db.run(`CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`);
+  } catch (_err) {
+    // Already exists
+  }
+
+  // Migrate: create incomes table if it doesn't exist on older DBs
+  try {
+    db.run(`CREATE TABLE IF NOT EXISTS incomes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`);
+  } catch (_err) {
+    // Already exists
+  }
+
   seedSettings();
   // Persist initial schema to disk
   saveDb();
