@@ -11,6 +11,9 @@ declare global {
         update: (id: number, data: { name: string; phone?: string; address?: string; notes?: string }) => Promise<{ success: boolean }>;
         delete: (id: number) => Promise<{ success: boolean }>;
         search: (query: string) => Promise<Customer[]>;
+        addAdvance: (data: { customer_id: number; amount: number; date: string; notes?: string }) => Promise<{ id: number }>;
+        getAdvances: (customerId: number) => Promise<CustomerAdvance[]>;
+        deleteAdvance: (id: number) => Promise<{ success: boolean }>;
       };
       invoices: {
         create: (data: {
@@ -18,7 +21,7 @@ declare global {
           date: string;
           notes?: string;
           items: { merchandise_id?: number; custom_name?: string; quantity: number; unit_price: number; unit?: string }[];
-        }) => Promise<{ id: number; invoice_number: string }>;
+        }) => Promise<{ id: number; invoice_number: string; advance_applied: number }>;
         getByCustomer: (customerId: number) => Promise<Invoice[]>;
         getById: (id: number) => Promise<Invoice | null>;
         update: (id: number, data: {
@@ -107,6 +110,7 @@ declare global {
     created_at: string;
     total_invoiced: number;
     total_paid: number;
+    advance_balance: number;
   }
 
   interface InvoiceItem {
@@ -145,6 +149,17 @@ declare global {
 
   interface CustomerDetail extends Customer {
     invoices: Invoice[];
+    advances: CustomerAdvance[];
+  }
+
+  interface CustomerAdvance {
+    id: number;
+    customer_id: number;
+    amount: number;
+    used_amount: number;
+    date: string;
+    notes?: string | null;
+    created_at: string;
   }
 
   interface Merchandise {

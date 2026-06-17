@@ -144,19 +144,26 @@ export default function Customers() {
           <div className="divide-y divide-slate-100">
             {customers.map(c => {
               const remaining = c.total_invoiced - c.total_paid;
+              const advanceBalance = c.advance_balance ?? 0;
               return (
                 <Link
                   key={c.id}
                   to={`/customers/${c.id}`}
                   className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors group"
                 >
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">المتبقي</p>
                       <p className={`font-black text-sm ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                         {formatCurrency(remaining)}
                       </p>
                     </div>
+                    {advanceBalance > 0 && (
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase tracking-wider text-teal-600 font-bold">مقدم</p>
+                        <p className="font-black text-sm text-teal-700">{formatCurrency(advanceBalance)}</p>
+                      </div>
+                    )}
                     <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${getCustomerStatusClass(c).replace('border', '')} bg-opacity-10`}>
                       {getCustomerStatusLabel(c)}
                     </span>

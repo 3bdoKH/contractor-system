@@ -9,6 +9,17 @@ export interface Customer {
   created_at?: string;
   total_invoiced?: number;
   total_paid?: number;
+  advance_balance?: number;
+}
+
+export interface CustomerAdvance {
+  id: number;
+  customer_id: number;
+  amount: number;
+  used_amount: number;
+  date: string;
+  notes?: string | null;
+  created_at: string;
 }
 
 export class CustomerRepository {
@@ -24,7 +35,12 @@ export class CustomerRepository {
           FROM payments p
           JOIN invoices inv ON p.invoice_id = inv.id
           WHERE inv.customer_id = c.id
-        ), 0) as total_paid
+        ), 0) as total_paid,
+        COALESCE((
+          SELECT SUM(ca.amount - ca.used_amount)
+          FROM customer_advances ca
+          WHERE ca.customer_id = c.id
+        ), 0) as advance_balance
       FROM customers c
       LEFT JOIN invoices i ON i.customer_id = c.id
       GROUP BY c.id
@@ -42,7 +58,12 @@ export class CustomerRepository {
           FROM payments p
           JOIN invoices inv ON p.invoice_id = inv.id
           WHERE inv.customer_id = c.id
-        ), 0) as total_paid
+        ), 0) as total_paid,
+        COALESCE((
+          SELECT SUM(ca.amount - ca.used_amount)
+          FROM customer_advances ca
+          WHERE ca.customer_id = c.id
+        ), 0) as advance_balance
       FROM customers c
       LEFT JOIN invoices i ON i.customer_id = c.id
       WHERE c.id = ?
@@ -77,7 +98,9 @@ export class CustomerRepository {
       return { ...inv, items, payments };
     });
 
-    return { ...(customer as any), invoices: invoicesWithItems };
+    const advances = this.getAdvances(id);
+
+    return { ...(customer as any), invoices: invoicesWithItems, advances };
   }
 
   search(query: string): Customer[] {
@@ -90,7 +113,12 @@ export class CustomerRepository {
           FROM payments p
           JOIN invoices inv ON p.invoice_id = inv.id
           WHERE inv.customer_id = c.id
-        ), 0) as total_paid
+        ), 0) as total_paid,
+        COALESCE((
+          SELECT SUM(ca.amount - ca.used_amount)
+          FROM customer_advances ca
+          WHERE ca.customer_id = c.id
+        ), 0) as advance_balance
       FROM customers c
       LEFT JOIN invoices i ON i.customer_id = c.id
       WHERE c.name LIKE ? OR c.phone LIKE ?
@@ -122,5 +150,79 @@ export class CustomerRepository {
     getDb().run('DELETE FROM customers WHERE id = ?', [id]);
     saveDb();
     return { success: true };
+  }
+
+  // ─── Advance Payments ────────────────────────────────────────────────────
+
+  addAdvance(data: { customer_id: number; amount: number; date: string; notes?: string }): { id: number } {
+    const id = runWrite(
+      'INSERT INTO customer_advances (customer_id, amount, used_amount, date, notes) VALUES (?, ?, 0, ?, ?)',
+      [data.customer_id, data.amount, data.date, data.notes ?? null]
+    );
+    return { id };
+  }
+
+  getAdvances(customerId: number): CustomerAdvance[] {
+    return queryAll<CustomerAdvance>(
+      'SELECT * FROM customer_advances WHERE customer_id = ? ORDER BY created_at DESC',
+      [customerId]
+    );
+  }
+
+  deleteAdvance(id: number): { success: boolean } {
+    // Only delete if not yet consumed
+    const row = queryOne<{ used_amount: number }>('SELECT used_amount FROM customer_advances WHERE id = ?', [id]);
+    if (!row) return { success: false };
+    if (row.used_amount > 0) throw new Error('لا يمكن حذف دفعة مقدمة تم استخدامها جزئياً أو كلياً في فواتير');
+    getDb().run('DELETE FROM customer_advances WHERE id = ?', [id]);
+    saveDb();
+    return { success: true };
+  }
+
+  getAvailableBalance(customerId: number): number {
+    const row = queryOne<{ balance: number }>(
+      'SELECT COALESCE(SUM(amount - used_amount), 0) as balance FROM customer_advances WHERE customer_id = ?',
+      [customerId]
+    );
+    return row?.balance ?? 0;
+  }
+
+  /**
+   * FIFO drain: consume `amount` from oldest advances first.
+   * Call this INSIDE the same DB operation as invoice create (no separate saveDb here).
+   */
+  consumeBalance(customerId: number, amount: number): void {
+    const db = getDb();
+    const rows = queryAll<{ id: number; amount: number; used_amount: number }>(
+      'SELECT id, amount, used_amount FROM customer_advances WHERE customer_id = ? AND amount > used_amount ORDER BY created_at ASC',
+      [customerId]
+    );
+    let remaining = amount;
+    for (const row of rows) {
+      if (remaining <= 0) break;
+      const available = row.amount - row.used_amount;
+      const consume = Math.min(available, remaining);
+      db.run('UPDATE customer_advances SET used_amount = used_amount + ? WHERE id = ?', [consume, row.id]);
+      remaining -= consume;
+    }
+  }
+
+  /**
+   * LIFO restore: reverse `amount` from most-recently-consumed advances first.
+   * Call this when an invoice with advance payments is deleted.
+   */
+  reverseBalance(customerId: number, amount: number): void {
+    const db = getDb();
+    const rows = queryAll<{ id: number; used_amount: number }>(
+      'SELECT id, used_amount FROM customer_advances WHERE customer_id = ? AND used_amount > 0 ORDER BY created_at DESC',
+      [customerId]
+    );
+    let remaining = amount;
+    for (const row of rows) {
+      if (remaining <= 0) break;
+      const restore = Math.min(row.used_amount, remaining);
+      db.run('UPDATE customer_advances SET used_amount = used_amount - ? WHERE id = ?', [restore, row.id]);
+      remaining -= restore;
+    }
   }
 }

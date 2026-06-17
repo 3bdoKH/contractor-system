@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { getDb, queryAll, queryOne, saveDb } from '../db';
+import { CustomerRepository } from '../db/repositories/CustomerRepository';
 
 interface InvoiceItem {
   merchandise_id?: number | null;
@@ -23,6 +24,8 @@ interface UpdateInvoiceData {
 }
 
 export function registerInvoiceHandlers() {
+  const customerRepo = new CustomerRepository();
+
   // Generate next invoice number
   function generateInvoiceNumber(): string {
     const last = queryOne<{ invoice_number: string }>(
@@ -33,7 +36,7 @@ export function registerInvoiceHandlers() {
     return `INV-${num + 1}`;
   }
 
-  // Create invoice with items
+  // Create invoice with items — auto-applies advance balance if available
   ipcMain.handle('invoices:create', (_event, data: CreateInvoiceData) => {
     const total = data.items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
     const invoiceNumber = generateInvoiceNumber();
@@ -53,8 +56,23 @@ export function registerInvoiceHandlers() {
       );
     }
 
+    // ── Auto-apply advance balance (FIFO) ─────────────────────────────────
+    const availableBalance = customerRepo.getAvailableBalance(data.customer_id);
+    let advanceApplied = 0;
+
+    if (availableBalance > 0 && total > 0) {
+      advanceApplied = Math.min(availableBalance, total);
+      // Insert an auto payment tagged as advance
+      db.run(
+        'INSERT INTO payments (invoice_id, amount, date, notes, is_advance) VALUES (?, ?, ?, ?, 1)',
+        [invoiceId, advanceApplied, data.date, 'دفعة مقدمة تلقائية']
+      );
+      // Drain the advance rows FIFO
+      customerRepo.consumeBalance(data.customer_id, advanceApplied);
+    }
+
     saveDb();
-    return { id: invoiceId, invoice_number: invoiceNumber };
+    return { id: invoiceId, invoice_number: invoiceNumber, advance_applied: advanceApplied };
   });
 
   // Get invoices by customer
@@ -124,9 +142,24 @@ export function registerInvoiceHandlers() {
     return { success: true };
   });
 
-  // Delete invoice (cascade items and payments)
+  // Delete invoice — reverses any advance payments before cascading
   ipcMain.handle('invoices:delete', (_event, id: number) => {
     const db = getDb();
+
+    // Find the customer for this invoice
+    const invRow = queryOne<{ customer_id: number }>('SELECT customer_id FROM invoices WHERE id = ?', [id]);
+
+    if (invRow) {
+      // Sum all advance-tagged payments for this invoice, then restore them LIFO
+      const advRow = queryOne<{ total: number }>(
+        'SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoice_id = ? AND is_advance = 1',
+        [id]
+      );
+      if (advRow && advRow.total > 0) {
+        customerRepo.reverseBalance(invRow.customer_id, advRow.total);
+      }
+    }
+
     db.run('DELETE FROM payments WHERE invoice_id = ?', [id]);
     db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
     db.run('DELETE FROM invoices WHERE id = ?', [id]);

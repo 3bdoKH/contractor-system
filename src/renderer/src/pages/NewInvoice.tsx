@@ -37,6 +37,7 @@ export default function NewInvoice() {
   const [rows, setRows] = useState<ItemRow[]>([newRow()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [advanceApplied, setAdvanceApplied] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -96,7 +97,7 @@ export default function NewInvoice() {
 
     setSaving(true);
     try {
-      await window.api.invoices.create({
+      const result = await window.api.invoices.create({
         customer_id: customerId,
         date: date.trim(),
         notes: notes.trim() || undefined,
@@ -108,7 +109,12 @@ export default function NewInvoice() {
           unit: r.unit || undefined,
         })),
       });
-      navigate(`/customers/${customerId}`);
+      if (result.advance_applied > 0) {
+        setAdvanceApplied(result.advance_applied);
+        setTimeout(() => navigate(`/customers/${customerId}`), 2500);
+      } else {
+        navigate(`/customers/${customerId}`);
+      }
     } catch (err) {
       setError('حدث خطأ أثناء حفظ الفاتورة');
     } finally {
@@ -137,6 +143,13 @@ export default function NewInvoice() {
           <div className="flex items-center gap-2 p-4 bg-red-50 text-red-700 rounded-xl text-sm border border-red-200">
             <AlertCircle size={16} />
             <span>{error}</span>
+          </div>
+        )}
+
+        {advanceApplied > 0 && (
+          <div className="flex items-center gap-2 p-4 bg-teal-50 text-teal-700 rounded-xl text-sm border border-teal-200">
+            <span className="text-lg">✓</span>
+            <span>تم خصم <strong>{advanceApplied.toLocaleString('ar-EG')} ج.م</strong> من الرصيد المقدم للعميل تلقائياً</span>
           </div>
         )}
 

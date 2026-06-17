@@ -231,6 +231,16 @@ function initDb() {
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS customer_advances (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      amount      REAL    NOT NULL,
+      used_amount REAL    NOT NULL DEFAULT 0,
+      date        TEXT    NOT NULL,
+      notes       TEXT,
+      created_at  TEXT    DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrate existing databases to add the new 'unit' column
@@ -296,6 +306,28 @@ function initDb() {
       date TEXT NOT NULL,
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now'))
+    )`);
+  } catch (_err) {
+    // Already exists
+  }
+
+  // Migrate: add is_advance flag to existing payments rows
+  try {
+    db.run('ALTER TABLE payments ADD COLUMN is_advance INTEGER NOT NULL DEFAULT 0');
+  } catch (_err) {
+    // Column already exists
+  }
+
+  // Migrate: create customer_advances table if it doesn't exist on older DBs
+  try {
+    db.run(`CREATE TABLE IF NOT EXISTS customer_advances (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      amount      REAL    NOT NULL,
+      used_amount REAL    NOT NULL DEFAULT 0,
+      date        TEXT    NOT NULL,
+      notes       TEXT,
+      created_at  TEXT    DEFAULT (datetime('now'))
     )`);
   } catch (_err) {
     // Already exists

@@ -114,6 +114,10 @@ const api = {
       ipcRenderer.invoke('customers:update', id, data),
     delete: (id: number) => ipcRenderer.invoke('customers:delete', id),
     search: (query: string): Promise<Customer[]> => ipcRenderer.invoke('customers:search', query),
+    addAdvance: (data: { customer_id: number; amount: number; date: string; notes?: string }) =>
+      ipcRenderer.invoke('customers:addAdvance', data),
+    getAdvances: (customerId: number) => ipcRenderer.invoke('customers:getAdvances', customerId),
+    deleteAdvance: (id: number) => ipcRenderer.invoke('customers:deleteAdvance', id),
   },
   invoices: {
     create: (data: {

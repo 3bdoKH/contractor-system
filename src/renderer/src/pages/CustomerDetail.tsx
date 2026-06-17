@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  ArrowRight, Printer, Plus, Edit2, Trash2, Phone, MapPin, FileText, X, AlertCircle
+  ArrowRight, Printer, Plus, Edit2, Trash2, Phone, MapPin, FileText, X, AlertCircle, Wallet, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { formatCurrency } from '../utils';
 import InvoiceCard from '../components/InvoiceCard';
@@ -18,6 +18,13 @@ export default function CustomerDetail() {
   const [editForm, setEditForm] = useState({ name: '', phone: '', address: '', notes: '' });
   const [editError, setEditError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Advance modal state
+  const [showAdvanceModal, setShowAdvanceModal] = useState(false);
+  const [advanceForm, setAdvanceForm] = useState({ amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
+  const [advanceError, setAdvanceError] = useState('');
+  const [savingAdvance, setSavingAdvance] = useState(false);
+  const [showAdvanceList, setShowAdvanceList] = useState(true);
 
   useEffect(() => {
     loadCustomer();
@@ -79,6 +86,44 @@ export default function CustomerDetail() {
     }
   }
 
+  async function handleAddAdvance(e: React.FormEvent) {
+    e.preventDefault();
+    const amountNum = parseFloat(advanceForm.amount);
+    if (!amountNum || amountNum <= 0) { setAdvanceError('يرجى إدخال مبلغ صحيح'); return; }
+    if (!advanceForm.date) { setAdvanceError('التاريخ مطلوب'); return; }
+    setSavingAdvance(true);
+    setAdvanceError('');
+    try {
+      await window.api.customers.addAdvance({
+        customer_id: customerId,
+        amount: amountNum,
+        date: advanceForm.date,
+        notes: advanceForm.notes.trim() || undefined,
+      });
+      setShowAdvanceModal(false);
+      setAdvanceForm({ amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
+      await loadCustomer();
+    } catch {
+      setAdvanceError('حدث خطأ أثناء الحفظ');
+    } finally {
+      setSavingAdvance(false);
+    }
+  }
+
+  async function handleDeleteAdvance(advance: CustomerAdvance) {
+    if (advance.used_amount > 0) {
+      alert('لا يمكن حذف دفعة مقدمة تم استخدامها في فواتير');
+      return;
+    }
+    if (!confirm(`هل تريد حذف الدفعة المقدمة بقيمة ${formatCurrency(advance.amount)} ج.م؟`)) return;
+    try {
+      await window.api.customers.deleteAdvance(advance.id);
+      await loadCustomer();
+    } catch {
+      alert('فشل حذف الدفعة المقدمة');
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6 space-y-6 animate-pulse">
@@ -96,6 +141,9 @@ export default function CustomerDetail() {
   const totalInvoiced = customer.total_invoiced;
   const totalPaid = customer.total_paid;
   const totalRemaining = totalInvoiced - totalPaid;
+  const advanceBalance = customer.advance_balance ?? 0;
+  const advances = customer.advances ?? [];
+  const hasAdvances = advances.length > 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -111,7 +159,7 @@ export default function CustomerDetail() {
       {/* Customer Header */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={handleDelete}
               className="flex items-center gap-1.5 text-xs text-red-600 border border-red-200 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
@@ -125,6 +173,13 @@ export default function CustomerDetail() {
             >
               <Edit2 size={14} />
               تعديل
+            </button>
+            <button
+              onClick={() => { setShowAdvanceModal(true); setAdvanceError(''); }}
+              className="flex items-center gap-1.5 text-xs bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-lg transition-colors"
+            >
+              <Wallet size={14} />
+              تسجيل دفعة مقدمة
             </button>
             <button
               onClick={handlePrint}
@@ -161,8 +216,8 @@ export default function CustomerDetail() {
           </div>
         </div>
 
-        {/* Balance summary */}
-        <div className="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-slate-100">
+        {/* Balance summary — 4 cards */}
+        <div className="grid grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-100">
           <div className="text-center p-4 bg-slate-50 rounded-xl">
             <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">إجمالي الفواتير</p>
             <p className="text-lg font-black text-slate-900">{formatCurrency(totalInvoiced)}</p>
@@ -177,8 +232,87 @@ export default function CustomerDetail() {
               {formatCurrency(totalRemaining)}
             </p>
           </div>
+          <div className={`text-center p-4 rounded-xl ${advanceBalance > 0 ? 'bg-teal-50' : 'bg-slate-50'}`}>
+            <p className={`text-[10px] uppercase tracking-wider font-bold mb-1 ${advanceBalance > 0 ? 'text-teal-600' : 'text-slate-400'}`}>رصيد مقدم</p>
+            <p className={`text-lg font-black ${advanceBalance > 0 ? 'text-teal-700' : 'text-slate-400'}`}>
+              {formatCurrency(advanceBalance)}
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* Advance Payments Section */}
+      {hasAdvances && (
+        <div className="bg-white rounded-2xl border border-teal-200 shadow-sm overflow-hidden">
+          <button
+            onClick={() => setShowAdvanceList(v => !v)}
+            className="w-full flex items-center justify-between p-4 hover:bg-teal-50/50 transition-colors"
+          >
+            <div className="flex items-center gap-2 text-teal-700">
+              {showAdvanceList ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              <span className="text-sm font-semibold">
+                رصيد مقدم متاح: {formatCurrency(advanceBalance)} ج.م
+              </span>
+            </div>
+            <h3 className="text-sm font-bold text-teal-800">
+              الدفعات المقدمة ({advances.length})
+            </h3>
+          </button>
+
+          {showAdvanceList && (
+            <div className="divide-y divide-slate-100 border-t border-teal-100">
+              {advances.map(adv => {
+                const remaining = adv.amount - adv.used_amount;
+                const fullyConsumed = remaining <= 0;
+                return (
+                  <div key={adv.id} className="flex items-center justify-between px-5 py-3">
+                    {/* Left: delete */}
+                    <button
+                      onClick={() => handleDeleteAdvance(adv)}
+                      disabled={adv.used_amount > 0}
+                      className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      title={adv.used_amount > 0 ? 'لا يمكن الحذف — تم استخدام جزء من هذه الدفعة' : 'حذف'}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+
+                    {/* Middle: amounts */}
+                    <div className="flex items-center gap-6 text-sm">
+                      {adv.used_amount > 0 && (
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400">المستخدم</p>
+                          <p className="font-bold text-slate-500">{formatCurrency(adv.used_amount)} ج.م</p>
+                        </div>
+                      )}
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-teal-600">المتبقي</p>
+                        <p className={`font-bold ${fullyConsumed ? 'text-slate-400' : 'text-teal-700'}`}>
+                          {formatCurrency(remaining)} ج.م
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-400">المبلغ الأصلي</p>
+                        <p className="font-bold text-slate-700">{formatCurrency(adv.amount)} ج.م</p>
+                      </div>
+                    </div>
+
+                    {/* Right: date + status + notes */}
+                    <div className="text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${fullyConsumed ? 'bg-slate-100 text-slate-500' : 'bg-teal-100 text-teal-700'}`}>
+                          {fullyConsumed ? 'مستخدمة بالكامل' : 'متاحة'}
+                        </span>
+                        <p className="text-xs font-semibold text-slate-600">{adv.date}</p>
+                      </div>
+                      {adv.notes && <p className="text-xs text-slate-400 mt-0.5">{adv.notes}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Invoices section */}
       <div>
@@ -189,6 +323,11 @@ export default function CustomerDetail() {
           >
             <Plus size={16} />
             فاتورة جديدة
+            {advanceBalance > 0 && (
+              <span className="bg-white/20 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                رصيد: {formatCurrency(advanceBalance)}
+              </span>
+            )}
           </Link>
           <h2 className="text-lg font-bold text-slate-900">
             الفواتير ({customer.invoices.length})
@@ -214,6 +353,85 @@ export default function CustomerDetail() {
           </div>
         )}
       </div>
+
+      {/* Add Advance Modal */}
+      {showAdvanceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4" dir="rtl">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900">تسجيل دفعة مقدمة</h2>
+              <button onClick={() => setShowAdvanceModal(false)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleAddAdvance} className="p-6 space-y-4">
+              {advanceError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                  <AlertCircle size={16} />
+                  <span>{advanceError}</span>
+                </div>
+              )}
+              <div className="p-3 bg-teal-50 text-teal-700 rounded-lg text-sm">
+                سيتم تطبيق هذا الرصيد تلقائياً على الفواتير القادمة لهذا العميل
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  المبلغ <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={advanceForm.amount}
+                  onChange={e => setAdvanceForm(f => ({ ...f, amount: e.target.value }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all duration-200 text-sm"
+                  placeholder="0.00"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  التاريخ <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={advanceForm.date}
+                  onChange={e => setAdvanceForm(f => ({ ...f, date: e.target.value }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all duration-200 text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">ملاحظات</label>
+                <textarea
+                  value={advanceForm.notes}
+                  onChange={e => setAdvanceForm(f => ({ ...f, notes: e.target.value }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all duration-200 resize-none text-sm"
+                  rows={2}
+                  placeholder="ملاحظات اختيارية"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={savingAdvance}
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-teal-500/20 active:scale-[0.98] text-sm"
+                >
+                  {savingAdvance ? 'جاري الحفظ...' : 'تسجيل الدفعة'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanceModal(false)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors active:scale-[0.98] text-sm"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {showEdit && (

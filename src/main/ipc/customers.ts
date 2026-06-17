@@ -9,7 +9,7 @@ export function registerCustomerHandlers() {
     return repository.getAll();
   });
 
-  // Get customer by ID with all invoices and payments
+  // Get customer by ID with all invoices, payments, and advances
   ipcMain.handle('customers:getById', (_event, id: number) => {
     return repository.getById(id);
   });
@@ -32,5 +32,22 @@ export function registerCustomerHandlers() {
   // Search customers
   ipcMain.handle('customers:search', (_event, query: string) => {
     return repository.search(query);
+  });
+
+  // ─── Advance Payments ────────────────────────────────────────────────────
+
+  // Record a new advance deposit
+  ipcMain.handle('customers:addAdvance', (_event, data: { customer_id: number; amount: number; date: string; notes?: string }) => {
+    return repository.addAdvance(data);
+  });
+
+  // Get all advance records for a customer
+  ipcMain.handle('customers:getAdvances', (_event, customerId: number) => {
+    return repository.getAdvances(customerId);
+  });
+
+  // Delete an advance (only if not yet consumed)
+  ipcMain.handle('customers:deleteAdvance', (_event, id: number) => {
+    return repository.deleteAdvance(id);
   });
 }
