@@ -311,6 +311,20 @@ function initDb() {
     // Already exists
   }
 
+  // Migrate: add description column to expenses for databases created before this field existed
+  try {
+    db.run("ALTER TABLE expenses ADD COLUMN description TEXT NOT NULL DEFAULT ''");
+  } catch (_err) {
+    // Column already exists — this is the expected case for new installs
+  }
+
+  // Migrate: add description column to incomes for databases created before this field existed
+  try {
+    db.run("ALTER TABLE incomes ADD COLUMN description TEXT NOT NULL DEFAULT ''");
+  } catch (_err) {
+    // Column already exists
+  }
+
   // Migrate: add is_advance flag to existing payments rows
   try {
     db.run('ALTER TABLE payments ADD COLUMN is_advance INTEGER NOT NULL DEFAULT 0');
