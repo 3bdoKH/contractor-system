@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Save, CheckCircle, AlertCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Save, CheckCircle, AlertCircle, RefreshCw, Download, Wifi, WifiOff } from 'lucide-react';
 
 interface SettingsForm {
   contractor_name: string;
@@ -25,6 +25,16 @@ const FIELDS: { key: keyof SettingsForm; label: string; placeholder: string; opt
   { key: 'pdf_footer_note', label: 'ملاحظة أسفل التقرير', placeholder: 'ملاحظة اختيارية تظهر في PDF', optional: true },
 ];
 
+const UPDATE_STATE_UI: Record<UpdateState, { label: string; color: string; icon: React.ReactNode }> = {
+  idle:          { label: '',                                              color: '',                         icon: null },
+  checking:      { label: 'جاري التحقق من وجود تحديثات...',              color: 'text-blue-600',            icon: <RefreshCw size={15} className="animate-spin" /> },
+  available:     { label: '✓ يتوفر إصدار جديد! جاري التنزيل...',         color: 'text-teal-700',            icon: <Download size={15} /> },
+  'not-available': { label: '✓ التطبيق محدث بالكامل',                    color: 'text-emerald-700',         icon: <CheckCircle size={15} /> },
+  downloaded:    { label: '✓ تم تنزيل التحديث — أعد تشغيل التطبيق',     color: 'text-purple-700',          icon: <Download size={15} /> },
+  error:         { label: '✗ فشل التحقق عن وجود تحديثات',               color: 'text-red-600',             icon: <WifiOff size={15} /> },
+  unsupported:   { label: 'التحديث التلقائي متاح على Windows فقط',       color: 'text-slate-400',           icon: <Wifi size={15} /> },
+};
+
 export default function Settings() {
   const [form, setForm] = useState<SettingsForm>(emptyForm);
   const [loading, setLoading] = useState(true);
@@ -32,8 +42,30 @@ export default function Settings() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  // Update check state
+  const [appVersion, setAppVersion] = useState('');
+  const [updateState, setUpdateState] = useState<UpdateState>('idle');
+  const [checking, setChecking] = useState(false);
+
   useEffect(() => {
     loadSettings();
+
+    // Get current version
+    window.api.updates.getVersion().then(setAppVersion).catch(() => {});
+
+    // Listen for update status events pushed from main process
+    window.api.updates.onStatus(({ state }) => {
+      setUpdateState(state);
+      setChecking(false);
+      // Auto-reset "not-available" after 8 seconds so button doesn't stay green forever
+      if (state === 'not-available') {
+        setTimeout(() => setUpdateState('idle'), 8000);
+      }
+    });
+
+    return () => {
+      window.api.updates.removeStatusListener();
+    };
   }, []);
 
   async function loadSettings() {
@@ -77,6 +109,23 @@ export default function Settings() {
     }
   }
 
+  async function handleCheckUpdate() {
+    setChecking(true);
+    setUpdateState('checking');
+    try {
+      const result = await window.api.updates.checkNow();
+      // If unsupported platform, the main process resolves with { platform: 'unsupported' }
+      if (result && (result as any).platform === 'unsupported') {
+        setUpdateState('unsupported');
+        setChecking(false);
+      }
+      // Otherwise, status will arrive via the onStatus listener
+    } catch {
+      setUpdateState('error');
+      setChecking(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6 space-y-6 animate-pulse">
@@ -92,6 +141,8 @@ export default function Settings() {
       </div>
     );
   }
+
+  const stateUI = UPDATE_STATE_UI[updateState];
 
   return (
     <div className="p-6 space-y-6 max-w-2xl">
@@ -186,6 +237,35 @@ export default function Settings() {
           </button>
         </div>
       </form>
+
+      {/* Updates section */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">التحديثات</h2>
+        <div className="flex items-center justify-between">
+          {/* Right: version + status */}
+          <div className="text-right space-y-1">
+            <p className="text-sm text-slate-500">
+              الإصدار الحالي: <span className="font-bold text-slate-800">{appVersion || '—'}</span>
+            </p>
+            {updateState !== 'idle' && stateUI.label && (
+              <div className={`flex items-center gap-1.5 text-sm ${stateUI.color}`}>
+                {stateUI.icon}
+                <span>{stateUI.label}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Left: check button */}
+          <button
+            onClick={handleCheckUpdate}
+            disabled={checking || updateState === 'checking' || updateState === 'unsupported'}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all active:scale-[0.97]"
+          >
+            <RefreshCw size={15} className={checking ? 'animate-spin' : ''} />
+            {updateState === 'checking' ? 'جاري البحث...' : 'بحث عن تحديث'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

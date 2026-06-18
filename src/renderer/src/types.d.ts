@@ -98,9 +98,16 @@ declare global {
         create: (data: { description: string; amount: number; date: string; notes?: string }) => Promise<{ id: number }>;
         delete: (id: number) => Promise<{ success: boolean }>;
       };
+      updates: {
+        checkNow: () => Promise<void | { platform: string }>;
+        getVersion: () => Promise<string>;
+        onStatus: (cb: (payload: { state: UpdateState; info?: string }) => void) => void;
+        removeStatusListener: () => void;
+      };
     };
   }
 
+  type UpdateState = 'idle' | 'checking' | 'available' | 'not-available' | 'downloaded' | 'error' | 'unsupported';
   interface Customer {
     id: number;
     name: string;

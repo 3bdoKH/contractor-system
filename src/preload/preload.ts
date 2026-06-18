@@ -218,6 +218,16 @@ const api = {
       ipcRenderer.invoke('incomes:create', data),
     delete: (id: number) => ipcRenderer.invoke('incomes:delete', id),
   },
+  updates: {
+    checkNow: () => ipcRenderer.invoke('updates:checkNow'),
+    getVersion: (): Promise<string> => ipcRenderer.invoke('updates:getVersion'),
+    onStatus: (cb: (payload: { state: string; info?: string }) => void) => {
+      ipcRenderer.on('update:status', (_event, payload) => cb(payload));
+    },
+    removeStatusListener: () => {
+      ipcRenderer.removeAllListeners('update:status');
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

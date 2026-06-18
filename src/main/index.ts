@@ -1,7 +1,7 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { initializeDb, getDb, queryOne } from './db';
+import { initializeDb, queryOne } from './db';
 import { registerCustomerHandlers } from './ipc/customers';
 import { registerInvoiceHandlers } from './ipc/invoices';
 import { registerPaymentHandlers } from './ipc/payments';
@@ -25,7 +25,7 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox');
 }
 
-async function createWindow() {
+async function createWindow(): Promise<BrowserWindow> {
   // Initialize DB before creating the window (sql.js is async)
   await initializeDb();
 
@@ -68,40 +68,68 @@ async function createWindow() {
   registerInventoryHandlers();
   registerExpenseHandlers();
   registerIncomeHandlers();
+
+  return mainWindow;
 }
 
 app.on('ready', () => {
-  createWindow().catch((err) => {
-    console.error('Failed to create window:', err);
-    app.quit();
-  });
+  createWindow()
+    .then((mainWindow) => {
+      // Always expose current app version to renderer
+      ipcMain.handle('updates:getVersion', () => app.getVersion());
 
-  // Only run Squirrel auto-updater on Windows (it's not supported on Linux/macOS with Squirrel)
-  if (process.platform === 'win32') {
-    const { autoUpdater } = require('electron');
+      // Only run Squirrel auto-updater on Windows
+      if (process.platform === 'win32') {
+        const { autoUpdater } = require('electron');
 
-    updateElectronApp({
-      repo: '3bdoKH/contractor-system',
-      updateInterval: '1 hour',
-      logger: require('electron-log'),
+        updateElectronApp({
+          repo: '3bdoKH/contractor-system',
+          updateInterval: '1 hour',
+          logger: require('electron-log'),
+        });
+
+        // Push update status events to the renderer
+        const sendStatus = (state: string, info?: string) => {
+          if (!mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update:status', { state, info });
+          }
+        };
+
+        autoUpdater.on('checking-for-update',  () => sendStatus('checking'));
+        autoUpdater.on('update-available',     () => sendStatus('available'));
+        autoUpdater.on('update-not-available', () => sendStatus('not-available'));
+        autoUpdater.on('update-downloaded',    () => sendStatus('downloaded'));
+        autoUpdater.on('error', (err: Error)   => sendStatus('error', err.message));
+
+        // When the update has been downloaded, prompt the user to restart
+        autoUpdater.on('update-downloaded', (_event: any, _releaseNotes: string, releaseName: string) => {
+          const { dialog } = require('electron');
+          dialog.showMessageBox({
+            type: 'info',
+            title: 'تحديث جاهز للتثبيت',
+            message: `الإصدار الجديد ${releaseName} جاهز.`,
+            detail: 'سيتم إعادة تشغيل التطبيق لتثبيت التحديث.',
+            buttons: ['إعادة التشغيل الآن', 'لاحقاً'],
+            defaultId: 0,
+            cancelId: 1,
+          }).then(({ response }: { response: number }) => {
+            if (response === 0) autoUpdater.quitAndInstall();
+          });
+        });
+
+        // Manual check trigger from renderer
+        ipcMain.handle('updates:checkNow', () => {
+          autoUpdater.checkForUpdates();
+        });
+      } else {
+        // Non-Windows: return unsupported signal so the UI can show a note
+        ipcMain.handle('updates:checkNow', () => ({ platform: 'unsupported' }));
+      }
+    })
+    .catch((err) => {
+      console.error('Failed to create window:', err);
+      app.quit();
     });
-
-    // When the update has been downloaded, prompt the user to restart
-    autoUpdater.on('update-downloaded', (_event: any, releaseNotes: string, releaseName: string) => {
-      const { dialog } = require('electron');
-      dialog.showMessageBox({
-        type: 'info',
-        title: 'تحديث جاهز للتثبيت',
-        message: `الإصدار الجديد ${releaseName} جاهز.`,
-        detail: 'سيتم إعادة تشغيل التطبيق لتثبيت التحديث.',
-        buttons: ['إعادة التشغيل الآن', 'لاحقاً'],
-        defaultId: 0,
-        cancelId: 1,
-      }).then(({ response }: { response: number }) => {
-        if (response === 0) autoUpdater.quitAndInstall();
-      });
-    });
-  }
 });
 
 app.on('window-all-closed', () => {
