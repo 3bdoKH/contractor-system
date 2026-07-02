@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  ArrowRight, Printer, Plus, Edit2, Trash2, Phone, MapPin, FileText, X, AlertCircle, Wallet, ChevronDown, ChevronUp
+  ArrowRight, Printer, Plus, Edit2, Trash2, Phone, MapPin, FileText, X, AlertCircle, Wallet, ChevronDown, ChevronUp, Filter
 } from 'lucide-react';
 import { formatCurrency } from '../utils';
 import InvoiceCard from '../components/InvoiceCard';
@@ -14,6 +14,8 @@ export default function CustomerDetail() {
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [printing, setPrinting] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [skipPaid, setSkipPaid] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', phone: '', address: '', notes: '' });
   const [editError, setEditError] = useState('');
@@ -49,9 +51,10 @@ export default function CustomerDetail() {
   }
 
   async function handlePrint() {
+    setShowPrintModal(false);
     setPrinting(true);
     try {
-      await window.api.print.customerReport(customerId);
+      await window.api.print.customerReport(customerId, { skipPaid });
     } catch (e) {
       alert('فشل إنشاء التقرير');
     } finally {
@@ -200,7 +203,7 @@ export default function CustomerDetail() {
               تسجيل دفعة مقدمة
             </button>
             <button
-              onClick={handlePrint}
+              onClick={() => setShowPrintModal(true)}
               disabled={printing}
               className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
             >
@@ -371,6 +374,76 @@ export default function CustomerDetail() {
           </div>
         )}
       </div>
+
+      {/* Print Options Modal */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4" dir="rtl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Printer size={16} className="text-slate-600" />
+                خيارات الطباعة
+              </h2>
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Filter option */}
+              <div
+                onClick={() => setSkipPaid(v => !v)}
+                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  skipPaid
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Filter size={16} className={skipPaid ? 'text-blue-600' : 'text-slate-400'} />
+                  <div>
+                    <p className={`text-sm font-semibold ${skipPaid ? 'text-blue-800' : 'text-slate-700'}`}>
+                      تخطي الفواتير المدفوعة بالكامل
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      سيتم طباعة الفواتير غير المسددة فقط
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                  skipPaid ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                }`}>
+                  {skipPaid && <div className="w-2 h-2 bg-white rounded-full" />}
+                </div>
+              </div>
+
+              {/* Info line */}
+              <p className="text-xs text-slate-400 text-center">
+                ترتيب الفواتير: الأحدث أولاً
+              </p>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={handlePrint}
+                  className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-slate-800/20 active:scale-[0.98] text-sm flex items-center justify-center gap-2"
+                >
+                  <Printer size={15} />
+                  طباعة
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPrintModal(false)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors active:scale-[0.98] text-sm"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Advance Modal */}
       {showAdvanceModal && (

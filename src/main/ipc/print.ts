@@ -154,7 +154,9 @@ const SHARED_CSS = (fontPath: string) => `
 `;
 
 export function registerPrintHandlers() {
-  ipcMain.handle('print:customerReport', async (_event, customerId: number) => {
+  ipcMain.handle('print:customerReport', async (_event, customerId: number, options?: { skipPaid?: boolean }) => {
+    const skipPaid = options?.skipPaid ?? false;
+
     const settingRows = queryAll<{ key: string; value: string }>('SELECT key, value FROM settings');
     const cfg: Record<string, string> = {};
     settingRows.forEach((s) => { cfg[s.key] = s.value; });
@@ -162,14 +164,18 @@ export function registerPrintHandlers() {
     const customer = queryOne('SELECT * FROM customers WHERE id = ?', [customerId]) as any;
     if (!customer) throw new Error('Customer not found');
 
-    const invoices = queryAll(`
+    const allInvoices = queryAll(`
       SELECT i.*, COALESCE(SUM(p.amount), 0) as total_paid
       FROM invoices i
       LEFT JOIN payments p ON p.invoice_id = i.id
       WHERE i.customer_id = ?
       GROUP BY i.id
-      ORDER BY i.date ASC
+      ORDER BY i.date DESC
     `, [customerId]) as any[];
+
+    const invoices = skipPaid
+      ? allInvoices.filter((inv: any) => inv.total_paid < inv.total)
+      : allInvoices;
 
     const invoicesWithDetails = invoices.map((inv) => {
       const items = queryAll(`
@@ -280,7 +286,7 @@ export function registerPrintHandlers() {
       <body>
         <div class="header">
           <h1>${cfg.contractor_name || 'نظام المقاول'}</h1>
-          <div class="sub-title">${cfg.pdf_header_title || 'كشف حساب'}</div>
+          <div class="sub-title">${cfg.pdf_header_title || 'كشف حساب'}${skipPaid ? ' — الفواتير غير المسددة فقط' : ''}</div>
           <div class="print-date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</div>
         </div>
 
@@ -375,7 +381,7 @@ export function registerPrintHandlers() {
       LEFT JOIN supplier_payments sp ON sp.supply_invoice_id = si.id
       WHERE si.supplier_id = ?
       GROUP BY si.id
-      ORDER BY si.date ASC
+      ORDER BY si.date DESC
     `, [supplierId]) as any[];
 
     const invoicesWithDetails = invoices.map((inv) => {
