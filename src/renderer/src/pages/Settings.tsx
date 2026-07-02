@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Save, CheckCircle, AlertCircle, RefreshCw, Download, Wifi, WifiOff } from 'lucide-react';
+import {
+  Settings as SettingsIcon, Save, CheckCircle, AlertCircle, RefreshCw,
+  Download, Wifi, WifiOff, Shield, Send, Database, Loader, Link, Link2Off,
+} from 'lucide-react';
 
 interface SettingsForm {
   contractor_name: string;
@@ -26,14 +29,22 @@ const FIELDS: { key: keyof SettingsForm; label: string; placeholder: string; opt
 ];
 
 const UPDATE_STATE_UI: Record<UpdateState, { label: string; color: string; icon: React.ReactNode }> = {
-  idle:          { label: '',                                              color: '',                         icon: null },
-  checking:      { label: 'جاري التحقق من وجود تحديثات...',              color: 'text-blue-600',            icon: <RefreshCw size={15} className="animate-spin" /> },
-  available:     { label: '✓ يتوفر إصدار جديد! جاري التنزيل...',         color: 'text-teal-700',            icon: <Download size={15} /> },
-  'not-available': { label: '✓ التطبيق محدث بالكامل',                    color: 'text-emerald-700',         icon: <CheckCircle size={15} /> },
-  downloaded:    { label: '✓ تم تنزيل التحديث — أعد تشغيل التطبيق',     color: 'text-purple-700',          icon: <Download size={15} /> },
-  error:         { label: '✗ فشل التحقق عن وجود تحديثات',               color: 'text-red-600',             icon: <WifiOff size={15} /> },
-  unsupported:   { label: 'التحديث التلقائي متاح على Windows فقط',       color: 'text-slate-400',           icon: <Wifi size={15} /> },
+  idle: { label: '', color: '', icon: null },
+  checking: { label: 'جاري التحقق من وجود تحديثات...', color: 'text-blue-600', icon: <RefreshCw size={15} className="animate-spin" /> },
+  available: { label: '✓ يتوفر إصدار جديد! جاري التنزيل...', color: 'text-teal-700', icon: <Download size={15} /> },
+  'not-available': { label: '✓ التطبيق محدث بالكامل', color: 'text-emerald-700', icon: <CheckCircle size={15} /> },
+  downloaded: { label: '✓ تم تنزيل التحديث — أعد تشغيل التطبيق', color: 'text-purple-700', icon: <Download size={15} /> },
+  error: { label: '✗ فشل التحقق عن وجود تحديثات', color: 'text-red-600', icon: <WifiOff size={15} /> },
+  unsupported: { label: 'التحديث التلقائي متاح على Windows فقط', color: 'text-slate-400', icon: <Wifi size={15} /> },
 };
+
+function formatLastRun(iso: string | null): string {
+  if (!iso) return 'لم يتم إجراء نسخة احتياطية بعد';
+  return new Date(iso).toLocaleString('ar-EG', {
+    year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
 
 export default function Settings() {
   const [form, setForm] = useState<SettingsForm>(emptyForm);
@@ -42,30 +53,30 @@ export default function Settings() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  // Update check state
+  // Update state
   const [appVersion, setAppVersion] = useState('');
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [checking, setChecking] = useState(false);
 
+  // Backup state
+  const [backupConnected, setBackupConnected] = useState(false);
+  const [lastRun, setLastRun] = useState<string>('');
+  const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [testingConn, setTestingConn] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   useEffect(() => {
     loadSettings();
-
-    // Get current version
-    window.api.updates.getVersion().then(setAppVersion).catch(() => {});
-
-    // Listen for update status events pushed from main process
+    loadBackupConfig();
+    window.api.updates.getVersion().then(setAppVersion).catch(() => { });
     window.api.updates.onStatus(({ state }) => {
       setUpdateState(state);
       setChecking(false);
-      // Auto-reset "not-available" after 8 seconds so button doesn't stay green forever
-      if (state === 'not-available') {
-        setTimeout(() => setUpdateState('idle'), 8000);
-      }
+      if (state === 'not-available') setTimeout(() => setUpdateState('idle'), 8000);
     });
-
-    return () => {
-      window.api.updates.removeStatusListener();
-    };
+    return () => { window.api.updates.removeStatusListener(); };
   }, []);
 
   async function loadSettings() {
@@ -86,11 +97,17 @@ export default function Settings() {
     }
   }
 
+  async function loadBackupConfig() {
+    try {
+      const cfg = await window.api.backup.getConfig();
+      setBackupConnected(cfg.isConnected);
+      setLastRun(cfg.lastRun ?? '');
+    } catch { /* ignore */ }
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setError('');
-    setSuccess(false);
+    setSaving(true); setError(''); setSuccess(false);
     try {
       await window.api.settings.update({
         contractor_name: form.contractor_name.trim(),
@@ -110,19 +127,71 @@ export default function Settings() {
   }
 
   async function handleCheckUpdate() {
-    setChecking(true);
-    setUpdateState('checking');
+    setChecking(true); setUpdateState('checking');
     try {
       const result = await window.api.updates.checkNow();
-      // If unsupported platform, the main process resolves with { platform: 'unsupported' }
       if (result && (result as any).platform === 'unsupported') {
-        setUpdateState('unsupported');
-        setChecking(false);
+        setUpdateState('unsupported'); setChecking(false);
       }
-      // Otherwise, status will arrive via the onStatus listener
     } catch {
-      setUpdateState('error');
-      setChecking(false);
+      setUpdateState('error'); setChecking(false);
+    }
+  }
+
+  async function handleConnect() {
+    setConnecting(true); setBackupMsg(null);
+    try {
+      const res = await window.api.backup.connect();
+      if (res.success) {
+        setBackupMsg({ type: 'success', text: '✓ تم الربط بنجاح! النسخ الاحتياطي التلقائي مفعّل' });
+        await loadBackupConfig();
+      } else {
+        setBackupMsg({ type: 'error', text: res.message || 'فشل الربط' });
+      }
+    } catch {
+      setBackupMsg({ type: 'error', text: 'فشل الاتصال بـ Telegram' });
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function handleDisconnect() {
+    if (!confirm('هل تريد فصل الربط مع Telegram؟ لن تُرسل نسخ احتياطية حتى تربط من جديد.')) return;
+    setDisconnecting(true); setBackupMsg(null);
+    try {
+      await window.api.backup.disconnect();
+      setBackupConnected(false); setLastRun('');
+      setBackupMsg({ type: 'success', text: 'تم فصل الربط' });
+    } catch { /* ignore */ } finally {
+      setDisconnecting(false);
+    }
+  }
+
+  async function handleBackupNow() {
+    setBackingUp(true); setBackupMsg(null);
+    try {
+      const res = await window.api.backup.runNow();
+      setBackupMsg({ type: res.success ? 'success' : 'error', text: res.message });
+      if (res.success) await loadBackupConfig();
+    } catch {
+      setBackupMsg({ type: 'error', text: 'فشل إجراء النسخة الاحتياطية' });
+    } finally {
+      setBackingUp(false);
+    }
+  }
+
+  async function handleTestConnection() {
+    setTestingConn(true); setBackupMsg(null);
+    try {
+      const res = await window.api.backup.sendTest();
+      setBackupMsg({
+        type: res.success ? 'success' : 'error',
+        text: res.success ? '✓ تم إرسال رسالة اختبار — تحقق من Telegram' : (res.message || 'فشل الإرسال'),
+      });
+    } catch {
+      setBackupMsg({ type: 'error', text: 'فشل الاتصال' });
+    } finally {
+      setTestingConn(false);
     }
   }
 
@@ -157,15 +226,12 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Success toast */}
       {success && (
         <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-medium">
           <CheckCircle size={18} className="text-emerald-600 shrink-0" />
           تم حفظ الإعدادات بنجاح ✓
         </div>
       )}
-
-      {/* Error */}
       {error && (
         <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
           <AlertCircle size={18} className="shrink-0" />
@@ -173,9 +239,9 @@ export default function Settings() {
         </div>
       )}
 
+      {/* ── General Settings Form ── */}
       <form onSubmit={handleSave}>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-          {/* Contractor info section */}
           <div className="p-5 space-y-4">
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">معلومات النشاط</h2>
             {FIELDS.slice(0, 3).map(field => (
@@ -194,8 +260,6 @@ export default function Settings() {
               </div>
             ))}
           </div>
-
-          {/* PDF section */}
           <div className="p-5 space-y-4">
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">إعدادات التقارير PDF</h2>
             {FIELDS.slice(3).map(field => (
@@ -225,7 +289,6 @@ export default function Settings() {
             ))}
           </div>
         </div>
-
         <div className="mt-5">
           <button
             type="submit"
@@ -238,11 +301,123 @@ export default function Settings() {
         </div>
       </form>
 
-      {/* Updates section */}
+      {/* ── Telegram Backup Section ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 p-5 border-b border-slate-100">
+          <div className={`p-2 rounded-lg ${backupConnected ? 'bg-emerald-100' : 'bg-sky-100'}`}>
+            <Shield size={18} className={backupConnected ? 'text-emerald-600' : 'text-sky-600'} />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-800">النسخ الاحتياطي عبر Telegram</h2>
+            <p className="text-xs text-slate-400 mt-0.5">نسخة احتياطية تلقائية يومية — يحتفظ بآخر 7 نسخ محلياً وعلى Telegram</p>
+          </div>
+          <span className={`mr-auto text-[11px] font-bold px-2.5 py-1 rounded-full ${backupConnected
+            ? 'bg-emerald-100 text-emerald-700'
+            : 'bg-slate-100 text-slate-500'
+            }`}>
+            {backupConnected ? '✓ مرتبط' : 'غير مرتبط'}
+          </span>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Feedback message */}
+          {backupMsg && (
+            <div className={`flex items-center gap-2 p-3 rounded-xl text-sm ${backupMsg.type === 'success'
+              ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+              : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
+              {backupMsg.type === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
+              {backupMsg.text}
+            </div>
+          )}
+
+          {/* ── CONNECTED STATE ── */}
+          {backupConnected ? (
+            <>
+              {/* Last run info */}
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl text-sm text-slate-600">
+                <Database size={14} className="text-slate-400 shrink-0" />
+                <span>
+                  آخر نسخة احتياطية:
+                  <span className="font-semibold text-slate-800 mr-1">{formatLastRun(lastRun || null)}</span>
+                </span>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleBackupNow}
+                  disabled={backingUp}
+                  className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-sky-500/20 active:scale-[0.97]"
+                >
+                  {backingUp ? <Loader size={15} className="animate-spin" /> : <Database size={15} />}
+                  {backingUp ? 'جاري الإرسال...' : 'نسخ احتياطي الآن'}
+                </button>
+
+                <button
+                  onClick={handleTestConnection}
+                  disabled={testingConn}
+                  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 text-sm font-medium px-4 py-2.5 rounded-xl transition-all active:scale-[0.97]"
+                >
+                  {testingConn ? <Loader size={15} className="animate-spin" /> : <Send size={15} />}
+                  اختبار الاتصال
+                </button>
+
+                <button
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className="mr-auto flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 px-3 py-2 rounded-xl border border-red-100 hover:border-red-200 hover:bg-red-50 transition-all"
+                >
+                  <Link2Off size={13} />
+                  فصل الربط
+                </button>
+              </div>
+            </>
+          ) : (
+            /* ── NOT CONNECTED STATE ── */
+            <div className="space-y-4">
+              {/* Instructions card */}
+              <div className="bg-sky-50 border border-sky-100 rounded-xl p-4 space-y-2 text-sm">
+                <p className="font-semibold text-sky-800 mb-3 flex items-center gap-2">
+                  <span>كيفية تفعيل النسخ الاحتياطي</span>
+                </p>
+                <div className="space-y-2 text-sky-700">
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-sky-500 mt-0.5 shrink-0">١</span>
+                    <p>افتح Telegram وابحث عن البوت <span className="font-mono font-bold bg-sky-100 px-1.5 py-0.5 rounded">@contractor_backup_bot</span></p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-sky-500 mt-0.5 shrink-0">٢</span>
+                    <p>أرسل له الرسالة <span className="font-mono font-bold bg-sky-100 px-1.5 py-0.5 rounded">/start</span></p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-sky-500 mt-0.5 shrink-0">٣</span>
+                    <p>اضغط زر <strong>"ربط Telegram"</strong> أدناه</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Connect button */}
+              <button
+                onClick={handleConnect}
+                disabled={connecting}
+                className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-sky-500/20 active:scale-[0.98]"
+              >
+                {connecting
+                  ? <><Loader size={18} className="animate-spin" /> جاري الربط...</>
+                  : <><Link size={18} /> ربط Telegram</>
+                }
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Updates Section ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">التحديثات</h2>
         <div className="flex items-center justify-between">
-          {/* Right: version + status */}
           <div className="text-right space-y-1">
             <p className="text-sm text-slate-500">
               الإصدار الحالي: <span className="font-bold text-slate-800">{appVersion || '—'}</span>
@@ -254,8 +429,6 @@ export default function Settings() {
               </div>
             )}
           </div>
-
-          {/* Left: check button */}
           <button
             onClick={handleCheckUpdate}
             disabled={checking || updateState === 'checking' || updateState === 'unsupported'}

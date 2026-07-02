@@ -13,6 +13,7 @@ import { registerInventoryHandlers } from './ipc/inventory';
 import { registerExpenseHandlers } from './ipc/expenses';
 import { registerIncomeHandlers } from './ipc/incomes';
 import { updateElectronApp } from 'update-electron-app';
+import { registerBackupHandlers, runAutoBackupIfDue } from './ipc/backup';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 // This MUST run before anything else — Squirrel fires the exe multiple times during install.
@@ -68,6 +69,7 @@ async function createWindow(): Promise<BrowserWindow> {
   registerInventoryHandlers();
   registerExpenseHandlers();
   registerIncomeHandlers();
+  registerBackupHandlers();
 
   return mainWindow;
 }
@@ -75,6 +77,8 @@ async function createWindow(): Promise<BrowserWindow> {
 app.on('ready', () => {
   createWindow()
     .then((mainWindow) => {
+      // Run auto-backup if 24h have passed since last run
+      runAutoBackupIfDue().catch(console.error);
       // Always expose current app version to renderer
       ipcMain.handle('updates:getVersion', () => app.getVersion());
 

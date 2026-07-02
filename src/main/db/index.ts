@@ -359,6 +359,8 @@ function seedSettings() {
     { key: 'contractor_address', value: '' },
     { key: 'pdf_header_title', value: 'كشف حساب' },
     { key: 'pdf_footer_note', value: '' },
+    { key: 'telegram_chat_id', value: '' },
+    { key: 'backup_last_run', value: '' },
   ];
   for (const { key, value } of defaults) {
     db.run('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', [key, value]);

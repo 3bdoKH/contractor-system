@@ -228,6 +228,18 @@ const api = {
       ipcRenderer.removeAllListeners('update:status');
     },
   },
+  backup: {
+    runNow: (): Promise<{ success: boolean; message: string }> =>
+      ipcRenderer.invoke('backup:runNow'),
+    getConfig: (): Promise<{ isConnected: boolean; lastRun: string }> =>
+      ipcRenderer.invoke('backup:getConfig'),
+    connect: (): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke('backup:connect'),
+    disconnect: (): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('backup:disconnect'),
+    sendTest: (): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke('backup:sendTest'),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

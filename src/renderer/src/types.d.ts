@@ -104,6 +104,13 @@ declare global {
         onStatus: (cb: (payload: { state: UpdateState; info?: string }) => void) => void;
         removeStatusListener: () => void;
       };
+      backup: {
+        runNow: () => Promise<{ success: boolean; message: string }>;
+        getConfig: () => Promise<{ isConnected: boolean; lastRun: string }>;
+        connect: () => Promise<{ success: boolean; message?: string }>;
+        disconnect: () => Promise<{ success: boolean }>;
+        sendTest: () => Promise<{ success: boolean; message?: string }>;
+      };
     };
   }
 
