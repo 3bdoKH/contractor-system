@@ -161,7 +161,7 @@ const api = {
       ipcRenderer.invoke('merchandise:setUnits', merchandiseId, units),
   },
   print: {
-    customerReport: (customerId: number, options?: { skipPaid?: boolean }): Promise<string> =>
+    customerReport: (customerId: number, options?: { skipPaid?: boolean; invoiceIds?: number[] }): Promise<string> =>
       ipcRenderer.invoke('print:customerReport', customerId, options),
     supplierReport: (supplierId: number): Promise<string> =>
       ipcRenderer.invoke('print:supplierReport', supplierId),

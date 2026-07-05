@@ -49,7 +49,7 @@ declare global {
         setUnits: (merchandiseId: number, units: { unit: string; is_default: boolean; conversion_factor: number }[]) => Promise<{ success: boolean }>;
       };
       print: {
-        customerReport: (customerId: number, options?: { skipPaid?: boolean }) => Promise<string>;
+        customerReport: (customerId: number, options?: { skipPaid?: boolean; invoiceIds?: number[] }) => Promise<string>;
         supplierReport: (supplierId: number) => Promise<string>;
       };
       suppliers: {

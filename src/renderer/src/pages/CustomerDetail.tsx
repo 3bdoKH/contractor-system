@@ -15,7 +15,8 @@ export default function CustomerDetail() {
   const [loading, setLoading] = useState(true);
   const [printing, setPrinting] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [skipPaid, setSkipPaid] = useState(false);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<number[]>([]);
+  const [printOption, setPrintOption] = useState<'all' | 'unpaid' | 'selected'>('all');
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', phone: '', address: '', notes: '' });
   const [editError, setEditError] = useState('');
@@ -33,6 +34,14 @@ export default function CustomerDetail() {
     loadCustomer();
   }, [customerId]);
 
+  function handleSelectInvoice(id: number, checked: boolean) {
+    if (checked) {
+      setSelectedInvoiceIds(prev => [...prev, id]);
+    } else {
+      setSelectedInvoiceIds(prev => prev.filter(x => x !== id));
+    }
+  }
+
   async function loadCustomer() {
     setLoading(true);
     try {
@@ -45,6 +54,9 @@ export default function CustomerDetail() {
         address: data.address || '',
         notes: data.notes || '',
       });
+      // Filter out selected invoice IDs that no longer exist
+      const existingIds = data.invoices.map(inv => inv.id);
+      setSelectedInvoiceIds(prev => prev.filter(id => existingIds.includes(id)));
     } finally {
       setLoading(false);
     }
@@ -54,7 +66,13 @@ export default function CustomerDetail() {
     setShowPrintModal(false);
     setPrinting(true);
     try {
-      await window.api.print.customerReport(customerId, { skipPaid });
+      const options: { skipPaid?: boolean; invoiceIds?: number[] } = {};
+      if (printOption === 'selected') {
+        options.invoiceIds = selectedInvoiceIds;
+      } else if (printOption === 'unpaid') {
+        options.skipPaid = true;
+      }
+      await window.api.print.customerReport(customerId, options);
     } catch (e) {
       alert('فشل إنشاء التقرير');
     } finally {
@@ -203,12 +221,19 @@ export default function CustomerDetail() {
               تسجيل دفعة مقدمة
             </button>
             <button
-              onClick={() => setShowPrintModal(true)}
+              onClick={() => {
+                if (selectedInvoiceIds.length > 0) {
+                  setPrintOption('selected');
+                } else {
+                  setPrintOption('all');
+                }
+                setShowPrintModal(true);
+              }}
               disabled={printing}
               className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
             >
               <Printer size={14} />
-              {printing ? 'جاري الطباعة...' : 'طباعة التقرير'}
+              {printing ? 'جاري الطباعة...' : selectedInvoiceIds.length > 0 ? `طباعة الفواتير المحددة (${selectedInvoiceIds.length})` : 'طباعة التقرير'}
             </button>
           </div>
 
@@ -337,19 +362,44 @@ export default function CustomerDetail() {
 
       {/* Invoices section */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <Link
-            to={`/customers/${customerId}/new-invoice`}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm text-sm"
-          >
-            <Plus size={16} />
-            فاتورة جديدة
-            {advanceBalance > 0 && (
-              <span className="bg-white/20 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                رصيد: {formatCurrency(advanceBalance)}
-              </span>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Link
+              to={`/customers/${customerId}/new-invoice`}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm text-sm"
+            >
+              <Plus size={16} />
+              فاتورة جديدة
+              {advanceBalance > 0 && (
+                <span className="bg-white/20 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  رصيد: {formatCurrency(advanceBalance)}
+                </span>
+              )}
+            </Link>
+
+            {customer.invoices.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedInvoiceIds.length === customer.invoices.length) {
+                      setSelectedInvoiceIds([]);
+                    } else {
+                      setSelectedInvoiceIds(customer.invoices.map(inv => inv.id));
+                    }
+                  }}
+                  className="text-xs text-slate-600 border border-slate-200 hover:bg-slate-50 px-3 py-2 rounded-lg transition-colors"
+                >
+                  {selectedInvoiceIds.length === customer.invoices.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                </button>
+                {selectedInvoiceIds.length > 0 && (
+                  <span className="text-xs text-slate-500 font-medium">
+                    تم تحديد {selectedInvoiceIds.length} من الفواتير
+                  </span>
+                )}
+              </div>
             )}
-          </Link>
+          </div>
           <h2 className="text-lg font-bold text-slate-900">
             الفواتير ({customer.invoices.length})
           </h2>
@@ -369,6 +419,8 @@ export default function CustomerDetail() {
                 customerId={customerId}
                 onDeleted={loadCustomer}
                 onPaymentAdded={loadCustomer}
+                selected={selectedInvoiceIds.includes(inv.id)}
+                onSelect={handleSelectInvoice}
               />
             ))}
           </div>
@@ -392,31 +444,90 @@ export default function CustomerDetail() {
               </button>
             </div>
             <div className="p-5 space-y-4">
-              {/* Filter option */}
-              <div
-                onClick={() => setSkipPaid(v => !v)}
-                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  skipPaid
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Filter size={16} className={skipPaid ? 'text-blue-600' : 'text-slate-400'} />
-                  <div>
-                    <p className={`text-sm font-semibold ${skipPaid ? 'text-blue-800' : 'text-slate-700'}`}>
-                      تخطي الفواتير المدفوعة بالكامل
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      سيتم طباعة الفواتير غير المسددة فقط
-                    </p>
+              {/* Print Options */}
+              <div className="space-y-3">
+                {/* All Invoices */}
+                <div
+                  onClick={() => setPrintOption('all')}
+                  className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    printOption === 'all'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText size={16} className={printOption === 'all' ? 'text-blue-600' : 'text-slate-400'} />
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${printOption === 'all' ? 'text-blue-800' : 'text-slate-700'}`}>
+                        تقرير كامل (كل الفواتير)
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        سيتم تضمين جميع الفواتير المسجلة للعميل
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                    printOption === 'all' ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                  }`}>
+                    {printOption === 'all' && <div className="w-2 h-2 bg-white rounded-full" />}
                   </div>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                  skipPaid ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
-                }`}>
-                  {skipPaid && <div className="w-2 h-2 bg-white rounded-full" />}
+
+                {/* Unpaid Invoices */}
+                <div
+                  onClick={() => setPrintOption('unpaid')}
+                  className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    printOption === 'unpaid'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Filter size={16} className={printOption === 'unpaid' ? 'text-blue-600' : 'text-slate-400'} />
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${printOption === 'unpaid' ? 'text-blue-800' : 'text-slate-700'}`}>
+                        تخطي الفواتير المدفوعة بالكامل
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        سيتم طباعة الفواتير غير المسددة فقط
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                    printOption === 'unpaid' ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                  }`}>
+                    {printOption === 'unpaid' && <div className="w-2 h-2 bg-white rounded-full" />}
+                  </div>
                 </div>
+
+                {/* Selected Invoices */}
+                {selectedInvoiceIds.length > 0 && (
+                  <div
+                    onClick={() => setPrintOption('selected')}
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      printOption === 'selected'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Printer size={16} className={printOption === 'selected' ? 'text-blue-600' : 'text-slate-400'} />
+                      <div className="text-right">
+                        <p className={`text-sm font-semibold ${printOption === 'selected' ? 'text-blue-800' : 'text-slate-700'}`}>
+                          الفواتير المحددة فقط ({selectedInvoiceIds.length})
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          سيتم طباعة الفواتير التي قمت بتحديدها فقط
+                        </p>
+                      </div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      printOption === 'selected' ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                    }`}>
+                      {printOption === 'selected' && <div className="w-2 h-2 bg-white rounded-full" />}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Info line */}

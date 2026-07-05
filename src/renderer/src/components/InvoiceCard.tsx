@@ -9,9 +9,11 @@ interface InvoiceCardProps {
   customerId: number;
   onDeleted: () => void;
   onPaymentAdded: () => void;
+  selected?: boolean;
+  onSelect?: (id: number, checked: boolean) => void;
 }
 
-export default function InvoiceCard({ invoice, customerId, onDeleted, onPaymentAdded }: InvoiceCardProps) {
+export default function InvoiceCard({ invoice, customerId, onDeleted, onPaymentAdded, selected, onSelect }: InvoiceCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -46,7 +48,18 @@ export default function InvoiceCard({ invoice, customerId, onDeleted, onPaymentA
           className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
           onClick={() => setExpanded(!expanded)}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {onSelect && (
+              <input
+                type="checkbox"
+                checked={selected ?? false}
+                onClick={e => e.stopPropagation()}
+                onChange={e => {
+                  onSelect(invoice.id, e.target.checked);
+                }}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+              />
+            )}
             <button
               onClick={e => { e.stopPropagation(); setExpanded(!expanded); }}
               className="text-slate-400 hover:text-slate-600"

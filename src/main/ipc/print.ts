@@ -154,8 +154,9 @@ const SHARED_CSS = (fontPath: string) => `
 `;
 
 export function registerPrintHandlers() {
-  ipcMain.handle('print:customerReport', async (_event, customerId: number, options?: { skipPaid?: boolean }) => {
+  ipcMain.handle('print:customerReport', async (_event, customerId: number, options?: { skipPaid?: boolean; invoiceIds?: number[] }) => {
     const skipPaid = options?.skipPaid ?? false;
+    const invoiceIds = options?.invoiceIds;
 
     const settingRows = queryAll<{ key: string; value: string }>('SELECT key, value FROM settings');
     const cfg: Record<string, string> = {};
@@ -173,9 +174,13 @@ export function registerPrintHandlers() {
       ORDER BY i.date DESC
     `, [customerId]) as any[];
 
-    const invoices = skipPaid
-      ? allInvoices.filter((inv: any) => inv.total_paid < inv.total)
-      : allInvoices;
+    let invoices = allInvoices;
+    if (invoiceIds && Array.isArray(invoiceIds)) {
+      invoices = invoices.filter((inv: any) => invoiceIds.includes(inv.id));
+    }
+    if (skipPaid) {
+      invoices = invoices.filter((inv: any) => inv.total_paid < inv.total);
+    }
 
     const invoicesWithDetails = invoices.map((inv) => {
       const items = queryAll(`
@@ -286,7 +291,7 @@ export function registerPrintHandlers() {
       <body>
         <div class="header">
           <h1>${cfg.contractor_name || 'نظام المقاول'}</h1>
-          <div class="sub-title">${cfg.pdf_header_title || 'كشف حساب'}${skipPaid ? ' — الفواتير غير المسددة فقط' : ''}</div>
+          <div class="sub-title">${cfg.pdf_header_title || 'كشف حساب'}${invoiceIds && Array.isArray(invoiceIds) ? ' — فواتير محددة فقط' : ''}${skipPaid ? ' — الفواتير غير المسددة فقط' : ''}</div>
           <div class="print-date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</div>
         </div>
 
