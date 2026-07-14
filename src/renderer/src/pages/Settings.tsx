@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import {
   Settings as SettingsIcon, Save, CheckCircle, AlertCircle, RefreshCw,
   Download, Wifi, WifiOff, Shield, Send, Database, Loader, Link, Link2Off,
+  Phone, Plus, Trash2,
 } from 'lucide-react';
 
 interface SettingsForm {
   contractor_name: string;
-  contractor_phone: string;
+  contractor_phones: string[];  // Multiple phones
   contractor_address: string;
   pdf_header_title: string;
   pdf_footer_note: string;
@@ -14,19 +15,11 @@ interface SettingsForm {
 
 const emptyForm: SettingsForm = {
   contractor_name: '',
-  contractor_phone: '',
+  contractor_phones: [''],
   contractor_address: '',
   pdf_header_title: '',
   pdf_footer_note: '',
 };
-
-const FIELDS: { key: keyof SettingsForm; label: string; placeholder: string; optional?: boolean }[] = [
-  { key: 'contractor_name', label: 'اسم النشاط', placeholder: 'مثال: فلان الفلاني' },
-  { key: 'contractor_phone', label: 'رقم الهاتف', placeholder: '01xxxxxxxxx', optional: true },
-  { key: 'contractor_address', label: 'العنوان', placeholder: 'العنوان الكامل', optional: true },
-  { key: 'pdf_header_title', label: 'عنوان التقرير في PDF', placeholder: 'مثال: كشف حساب' },
-  { key: 'pdf_footer_note', label: 'ملاحظة أسفل التقرير', placeholder: 'ملاحظة اختيارية تظهر في PDF', optional: true },
-];
 
 const UPDATE_STATE_UI: Record<UpdateState, { label: string; color: string; icon: React.ReactNode }> = {
   idle: { label: '', color: '', icon: null },
@@ -44,6 +37,17 @@ function formatLastRun(iso: string | null): string {
     year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+/** Parse the stored phone value: may be a JSON array string or a plain string */
+function parsePhones(raw: string | undefined): string[] {
+  if (!raw) return [''];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch { /* not JSON */ }
+  // Legacy: single plain string
+  return [raw];
 }
 
 export default function Settings() {
@@ -85,7 +89,7 @@ export default function Settings() {
       const data = await window.api.settings.getAll();
       setForm({
         contractor_name: data.contractor_name ?? '',
-        contractor_phone: data.contractor_phone ?? '',
+        contractor_phones: parsePhones(data.contractor_phone),
         contractor_address: data.contractor_address ?? '',
         pdf_header_title: data.pdf_header_title ?? '',
         pdf_footer_note: data.pdf_footer_note ?? '',
@@ -109,9 +113,11 @@ export default function Settings() {
     e.preventDefault();
     setSaving(true); setError(''); setSuccess(false);
     try {
+      // Store phones as a JSON array string
+      const phonesClean = form.contractor_phones.map(p => p.trim()).filter(Boolean);
       await window.api.settings.update({
         contractor_name: form.contractor_name.trim(),
-        contractor_phone: form.contractor_phone.trim(),
+        contractor_phone: JSON.stringify(phonesClean.length > 0 ? phonesClean : ['']),
         contractor_address: form.contractor_address.trim(),
         pdf_header_title: form.pdf_header_title.trim(),
         pdf_footer_note: form.pdf_footer_note.trim(),
@@ -124,6 +130,26 @@ export default function Settings() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Phone list helpers
+  function addPhone() {
+    setForm(f => ({ ...f, contractor_phones: [...f.contractor_phones, ''] }));
+  }
+
+  function removePhone(index: number) {
+    setForm(f => {
+      const phones = f.contractor_phones.filter((_, i) => i !== index);
+      return { ...f, contractor_phones: phones.length > 0 ? phones : [''] };
+    });
+  }
+
+  function updatePhone(index: number, value: string) {
+    setForm(f => {
+      const phones = [...f.contractor_phones];
+      phones[index] = value;
+      return { ...f, contractor_phones: phones };
+    });
   }
 
   async function handleCheckUpdate() {
@@ -242,53 +268,122 @@ export default function Settings() {
       {/* ── General Settings Form ── */}
       <form onSubmit={handleSave}>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+
+          {/* Business Info Section */}
           <div className="p-5 space-y-4">
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">معلومات النشاط</h2>
-            {FIELDS.slice(0, 3).map(field => (
-              <div key={field.key}>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  {field.label}
-                  {field.optional && <span className="text-slate-400 font-normal mr-1">(اختياري)</span>}
+
+            {/* Contractor Name */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                اسم النشاط
+              </label>
+              <input
+                type="text"
+                value={form.contractor_name}
+                onChange={e => setForm(f => ({ ...f, contractor_name: e.target.value }))}
+                placeholder="مثال: فلان الفلاني"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
+              />
+            </div>
+
+            {/* Phone Numbers — dynamic list */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-slate-700">
+                  أرقام الهاتف
+                  <span className="text-slate-400 font-normal mr-1">(اختياري)</span>
                 </label>
-                <input
-                  type="text"
-                  value={form[field.key]}
-                  onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                  placeholder={field.placeholder}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
-                />
+                <button
+                  type="button"
+                  onClick={addPhone}
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 px-2.5 py-1 rounded-lg hover:bg-blue-50 transition-all"
+                >
+                  <Plus size={13} />
+                  إضافة رقم
+                </button>
               </div>
-            ))}
+
+              <div className="space-y-2">
+                {form.contractor_phones.map((phone, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Phone size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={phone}
+                        onChange={e => updatePhone(idx, e.target.value)}
+                        placeholder="01xxxxxxxxx"
+                        className="w-full pr-9 pl-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
+                        dir="ltr"
+                      />
+                    </div>
+                    {form.contractor_phones.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removePhone(idx)}
+                        className="p-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100 transition-all"
+                        title="حذف الرقم"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Address */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                العنوان
+                <span className="text-slate-400 font-normal mr-1">(اختياري)</span>
+              </label>
+              <input
+                type="text"
+                value={form.contractor_address}
+                onChange={e => setForm(f => ({ ...f, contractor_address: e.target.value }))}
+                placeholder="العنوان الكامل"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
+              />
+            </div>
           </div>
+
+          {/* PDF Settings Section */}
           <div className="p-5 space-y-4">
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">إعدادات التقارير PDF</h2>
-            {FIELDS.slice(3).map(field => (
-              <div key={field.key}>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  {field.label}
-                  {field.optional && <span className="text-slate-400 font-normal mr-1">(اختياري)</span>}
-                </label>
-                {field.key === 'pdf_footer_note' ? (
-                  <textarea
-                    value={form[field.key]}
-                    onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                    placeholder={field.placeholder}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200 resize-none"
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={form[field.key]}
-                    onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                    placeholder={field.placeholder}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
-                  />
-                )}
-              </div>
-            ))}
+
+            {/* PDF Header Title */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                عنوان التقرير في PDF
+              </label>
+              <input
+                type="text"
+                value={form.pdf_header_title}
+                onChange={e => setForm(f => ({ ...f, pdf_header_title: e.target.value }))}
+                placeholder="مثال: كشف حساب"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200"
+              />
+            </div>
+
+            {/* PDF Footer Note */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                ملاحظة أسفل التقرير
+                <span className="text-slate-400 font-normal mr-1">(اختياري)</span>
+              </label>
+              <textarea
+                value={form.pdf_footer_note}
+                onChange={e => setForm(f => ({ ...f, pdf_footer_note: e.target.value }))}
+                placeholder="ملاحظة اختيارية تظهر في PDF"
+                rows={3}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200 resize-none"
+              />
+            </div>
           </div>
         </div>
+
         <div className="mt-5">
           <button
             type="submit"

@@ -3,6 +3,30 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { getDb, queryAll, saveDb } from '../db';
 
+/** Parse contractor phones: stored as JSON array or legacy plain string */
+function parsePhones(raw: string | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+  } catch { /* not JSON */ }
+  return raw ? [raw] : [];
+}
+
+/** Build the contractor contact lines for the PDF header */
+function buildContractorContactHtml(cfg: Record<string, string>): string {
+  const phones = parsePhones(cfg.contractor_phone);
+  const address = cfg.contractor_address?.trim();
+  const lines: string[] = [];
+  if (phones.length > 0) {
+    lines.push(`<div class="sub">الهاتف: ${phones.join(' | ')}</div>`);
+  }
+  if (address) {
+    lines.push(`<div class="sub">العنوان: ${address}</div>`);
+  }
+  return lines.join('\n');
+}
+
 interface InventoryFilters {
   from?: string;
   to?: string;
@@ -286,6 +310,7 @@ export function registerInventoryHandlers() {
         <div class="header">
           <h1>${cfg.contractor_name || 'نظام المقاول'}</h1>
           <div class="sub">${reportTitle}</div>
+          ${buildContractorContactHtml(cfg)}
         </div>
 
         <div class="date-range">
