@@ -106,10 +106,23 @@ declare global {
       };
       backup: {
         runNow: () => Promise<{ success: boolean; message: string }>;
-        getConfig: () => Promise<{ isConnected: boolean; lastRun: string }>;
-        connect: () => Promise<{ success: boolean; message?: string }>;
-        disconnect: () => Promise<{ success: boolean }>;
-        sendTest: () => Promise<{ success: boolean; message?: string }>;
+        exportLocal: () => Promise<{ success: boolean; message: string }>;
+        restoreLocal: () => Promise<{ success: boolean; message: string }>;
+        getConfig: () => Promise<{
+          isCloudConnected: boolean;
+          lastRun: string;
+          lastCloudRun: string;
+          s3Endpoint: string;
+          s3BucketName: string;
+          s3AccessKeyId: string;
+          s3Region: string;
+          hasSecretKey: boolean;
+        }>;
+        saveS3Config: (credentials: { endpoint: string; bucketName: string; accessKeyId: string; secretAccessKey: string; region?: string }) => Promise<{ success: boolean; message: string }>;
+        testS3: () => Promise<{ success: boolean; message: string }>;
+        disconnectS3: () => Promise<{ success: boolean }>;
+        listS3Backups: () => Promise<{ success: boolean; files: { key: string; name: string; size: number; lastModified: string }[]; message?: string }>;
+        restoreFromS3: (key: string) => Promise<{ success: boolean; message: string }>;
       };
     };
   }

@@ -66,6 +66,37 @@ export async function initializeDb(): Promise<void> {
   initDb();
 }
 
+/**
+ * Safely reload DB from a new file (used for database restoration).
+ * Creates a safety copy of current contractor.db first,
+ * closes existing DB connection, replaces file, and re-initializes.
+ */
+export async function reloadDbFromFile(sourcePath: string): Promise<void> {
+  const targetDbPath = dbPath || path.join(app.getPath('userData'), 'contractor.db');
+
+  // 1. Create safety snapshot of current DB before overwriting
+  if (fs.existsSync(targetDbPath)) {
+    const snapshotPath = path.join(app.getPath('userData'), `contractor_pre_restore_snapshot_${Date.now()}.db`);
+    fs.copyFileSync(targetDbPath, snapshotPath);
+  }
+
+  // 2. Close existing DB if loaded
+  if (db) {
+    try {
+      db.close();
+    } catch {
+      /* ignore */
+    }
+    db = undefined as unknown as Database;
+  }
+
+  // 3. Overwrite contractor.db with source file
+  fs.copyFileSync(sourcePath, targetDbPath);
+
+  // 4. Re-initialize DB
+  await initializeDb();
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /**
@@ -361,6 +392,16 @@ function seedSettings() {
     { key: 'pdf_footer_note', value: '' },
     { key: 'telegram_chat_id', value: '' },
     { key: 'backup_last_run', value: '' },
+    { key: 's3_endpoint', value: '' },
+    { key: 's3_bucket', value: '' },
+    { key: 's3_access_key', value: '' },
+    { key: 's3_secret_key', value: '' },
+    { key: 's3_region', value: 'us-east-1' },
+    { key: 'r2_account_id', value: '' },
+    { key: 'r2_bucket_name', value: '' },
+    { key: 'r2_access_key_id', value: '' },
+    { key: 'r2_secret_access_key', value: '' },
+    { key: 'backup_last_cloud_run', value: '' },
   ];
   for (const { key, value } of defaults) {
     db.run('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', [key, value]);

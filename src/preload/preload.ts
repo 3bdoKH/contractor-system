@@ -231,14 +231,30 @@ const api = {
   backup: {
     runNow: (): Promise<{ success: boolean; message: string }> =>
       ipcRenderer.invoke('backup:runNow'),
-    getConfig: (): Promise<{ isConnected: boolean; lastRun: string }> =>
-      ipcRenderer.invoke('backup:getConfig'),
-    connect: (): Promise<{ success: boolean; message?: string }> =>
-      ipcRenderer.invoke('backup:connect'),
-    disconnect: (): Promise<{ success: boolean }> =>
-      ipcRenderer.invoke('backup:disconnect'),
-    sendTest: (): Promise<{ success: boolean; message?: string }> =>
-      ipcRenderer.invoke('backup:sendTest'),
+    exportLocal: (): Promise<{ success: boolean; message: string }> =>
+      ipcRenderer.invoke('backup:exportLocal'),
+    restoreLocal: (): Promise<{ success: boolean; message: string }> =>
+      ipcRenderer.invoke('backup:restoreLocal'),
+    getConfig: (): Promise<{
+      isCloudConnected: boolean;
+      lastRun: string;
+      lastCloudRun: string;
+      s3Endpoint: string;
+      s3BucketName: string;
+      s3AccessKeyId: string;
+      s3Region: string;
+      hasSecretKey: boolean;
+    }> => ipcRenderer.invoke('backup:getConfig'),
+    saveS3Config: (credentials: { endpoint: string; bucketName: string; accessKeyId: string; secretAccessKey: string; region?: string }): Promise<{ success: boolean; message: string }> =>
+      ipcRenderer.invoke('backup:saveS3Config', credentials),
+    testS3: (): Promise<{ success: boolean; message: string }> =>
+      ipcRenderer.invoke('backup:testS3'),
+    disconnectS3: (): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('backup:disconnectS3'),
+    listS3Backups: (): Promise<{ success: boolean; files: { key: string; name: string; size: number; lastModified: string }[]; message?: string }> =>
+      ipcRenderer.invoke('backup:listS3Backups'),
+    restoreFromS3: (key: string): Promise<{ success: boolean; message: string }> =>
+      ipcRenderer.invoke('backup:restoreFromS3', key),
   },
 };
 
