@@ -25,18 +25,31 @@ const config: ForgeConfig = {
       const path = require('node:path');
       const { execSync } = require('node:child_process');
 
-      // 1. Copy package.json to staging folder
+      // 1. Copy package.json and package-lock.json to staging folder
       fs.copyFileSync(
         path.resolve(__dirname, 'package.json'),
         path.resolve(buildPath, 'package.json')
       );
+      if (fs.existsSync(path.resolve(__dirname, 'package-lock.json'))) {
+        fs.copyFileSync(
+          path.resolve(__dirname, 'package-lock.json'),
+          path.resolve(buildPath, 'package-lock.json')
+        );
+      }
 
-      // 2. Install production dependencies (like sql.js and pdfkit) in staging folder
+      // 2. Install production dependencies deterministically using npm ci
       console.log('Installing production dependencies in packaged app at:', buildPath);
-      execSync('npm install --production --no-audit --no-fund', {
-        cwd: buildPath,
-        stdio: 'inherit',
-      });
+      try {
+        execSync('npm ci --omit=dev --no-audit --no-fund', {
+          cwd: buildPath,
+          stdio: 'inherit',
+        });
+      } catch (_err) {
+        execSync('npm install --production --no-audit --no-fund', {
+          cwd: buildPath,
+          stdio: 'inherit',
+        });
+      }
     }
   },
   rebuildConfig: {},
